@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>INDUSTRIAL WORKSTATION // B2B M&A</title>
+    <title>INDUSTRIAL WORKSTATION // B2B M&A + X1 ARENA</title>
     
     <!-- Ably Realtime SDK -->
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
@@ -17,6 +17,7 @@
             --accent-amber: #f59e0b;
             --accent-red: #ef4444;
             --accent-cyan: #06b6d4;
+            --accent-purple: #a855f7;
             --text-main: #f1f5f9;
             --text-muted: #64748b;
         }
@@ -30,9 +31,10 @@
             display: flex;
             flex-direction: column;
             font-size: 13px;
+            user-select: none;
         }
 
-        /* Top HUD Clean */
+        /* Top HUD */
         header {
             background: var(--panel-bg);
             border-bottom: 1px solid var(--panel-border);
@@ -78,7 +80,7 @@
         /* Container Principal */
         .main-container {
             display: grid;
-            grid-template-columns: 1fr 300px;
+            grid-template-columns: 1fr 320px;
             gap: 15px;
             padding: 15px;
             flex: 1;
@@ -115,52 +117,72 @@
             align-items: center;
         }
 
-        /* Seção Operação Manual da Prensa */
-        .manual-workstation {
-            background: #0d121d;
-            border: 1px solid #1e293b;
-            border-radius: 6px;
+        /* --- MINIGAME INTERATIVO DE PRECISÃO --- */
+        .forge-minigame {
+            background: #090d16;
+            border: 2px solid var(--panel-border);
+            border-radius: 8px;
             padding: 20px;
             text-align: center;
             margin-bottom: 15px;
+            position: relative;
         }
 
-        .btn-press {
-            background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
-            color: white;
+        .gauge-container {
+            position: relative;
+            width: 100%;
+            height: 40px;
+            background: #1e293b;
+            border-radius: 6px;
+            margin: 20px 0;
+            overflow: hidden;
+            border: 1px solid #334155;
+        }
+
+        .target-zone {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            background: rgba(16, 185, 129, 0.4);
+            border-left: 2px solid var(--accent-green);
+            border-right: 2px solid var(--accent-green);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+
+        .gauge-needle {
+            position: absolute;
+            top: 0;
+            width: 6px;
+            height: 100%;
+            background: #ffffff;
+            box-shadow: 0 0 8px #ffffff;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        .btn-forge {
+            background: linear-gradient(180deg, #06b6d4 0%, #0891b2 100%);
+            color: black;
             border: none;
-            padding: 18px 28px;
+            padding: 15px 30px;
             border-radius: 6px;
             font-size: 14px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
-            transition: transform 0.1s, box-shadow 0.1s;
-            user-select: none;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+            transition: all 0.1s;
         }
 
-        .btn-press:active {
-            transform: scale(0.96);
-            box-shadow: 0 2px 6px rgba(34, 197, 94, 0.4);
+        .btn-forge:active { transform: scale(0.95); }
+
+        .combo-badge {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--accent-amber);
+            height: 24px;
         }
 
-        .heat-bar-container {
-            width: 100%;
-            height: 8px;
-            background: #1e293b;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 10px;
-        }
-
-        .heat-bar-fill {
-            height: 100%;
-            width: 0%;
-            background: var(--accent-amber);
-            transition: width 0.1s linear;
-        }
-
-        /* Botões e Controls */
+        /* Botões Globais */
         .btn {
             background: #1e293b;
             color: var(--text-main);
@@ -180,12 +202,10 @@
         }
 
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
         .btn-amber { border-color: var(--accent-amber); color: var(--accent-amber); }
         .btn-amber:hover:not(:disabled) { background: var(--accent-amber); color: black; }
-
-        .btn-red { border-color: var(--accent-red); color: var(--accent-red); }
-        .btn-red:hover:not(:disabled) { background: var(--accent-red); color: white; }
+        .btn-purple { border-color: var(--accent-purple); color: var(--accent-purple); }
+        .btn-purple:hover:not(:disabled) { background: var(--accent-purple); color: white; }
 
         /* Tabelas Limpas */
         table { width: 100%; border-collapse: collapse; }
@@ -203,9 +223,31 @@
             font-size: 11px;
         }
 
-        /* Sidebar Log Feed */
+        /* Modal Overlay de X1 Duel */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-card {
+            background: var(--panel-bg);
+            border: 2px solid var(--accent-red);
+            border-radius: 8px;
+            padding: 25px;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 0 25px rgba(239, 68, 68, 0.3);
+        }
+
+        /* Feeds de Logs */
         .log-box {
-            height: 280px;
+            height: 200px;
             overflow-y: auto;
             background: #090d16;
             border: 1px solid var(--panel-border);
@@ -217,14 +259,14 @@
             gap: 6px;
         }
 
-        .log-item { border-bottom: 1px solid #1e293b; padding-bottom: 4px; }
+        .log-item { border-bottom: 1px solid #1e293b; padding-bottom: 4px; word-break: break-all; }
     </style>
 </head>
 <body>
 
     <!-- HUD SUPERIOR -->
     <header>
-        <div class="hud-title">⚙️ INDUSTRIAL WORKSTATION // <span id="node-name">CARREGANDO...</span></div>
+        <div class="hud-title">⚙️ WORKSTATION B2B // <span id="node-name">CARREGANDO...</span></div>
         <div class="hud-stats">
             <div>CAIXA: <span class="stat-val" id="hud-cash">R$ 50.000</span></div>
             <div>PATRIMÔNIO: <span class="stat-amber" id="hud-networth">R$ 50.000</span></div>
@@ -235,48 +277,47 @@
 
     <!-- ABAS DE NAVEGAÇÃO -->
     <nav>
-        <button class="nav-tab active" onclick="switchTab('tab-fabrica', this)">[1] OPERAÇÃO & FÁBRICA</button>
+        <button class="nav-tab active" onclick="switchTab('tab-fabrica', this)">[1] OPERAÇÃO & MINIGAME</button>
         <button class="nav-tab" onclick="switchTab('tab-b2b', this)">[2] MERCADO B2B</button>
         <button class="nav-tab" onclick="switchTab('tab-leilao', this)">[3] LEILÃO M&A</button>
-        <button class="nav-tab" onclick="switchTab('tab-bolsa', this)">[4] BOLSA & OPA</button>
-        <button class="nav-tab" onclick="switchTab('tab-comms', this)">[5] CHAT GLOBAL</button>
+        <button class="nav-tab" onclick="switchTab('tab-chat', this)">[4] CHAT & X1 (DUELOS)</button>
     </nav>
 
     <div class="main-container">
         <main>
-            <!-- ABA 1: OPERAÇÃO MANUAL E EXPANSÃO DA FÁBRICA -->
+            <!-- ABA 1: MINIGAME DE PRECISÃO E AUTOMAÇÃO -->
             <div id="tab-fabrica" class="tab-content active">
                 
-                <!-- OPERAÇÃO MANUAL (Para início de jogo sem funcionários) -->
-                <div class="manual-workstation">
-                    <div style="font-size: 13px; font-weight: bold; margin-bottom: 5px; color: var(--accent-green);">
-                        🔨 BANCADA DE OPERAÇÃO MANUAL DA PRENSA
+                <!-- MINIGAME DE FORJA MANUAL -->
+                <div class="forge-minigame">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: bold; color: var(--accent-cyan);">🔥 MINIGAME DE PRECISÃO (FORJA DE AÇO)</span>
+                        <span class="combo-badge" id="combo-display">x1 COMBO</span>
                     </div>
-                    <p style="color: var(--text-muted); margin-bottom: 15px; font-size: 11px;">
-                        Opere a máquina manualmente para forjar aço, gerar receita imediata e insumos enquanto não possui engenheiros.
-                    </p>
-                    
-                    <button class="btn-press" id="btn-manual-press" onclick="operateMachineManual()">
-                        ⚙️ OPERAR PRENSA MANUAL (+R$ 2.500 / +2 Aço)
-                    </button>
 
-                    <div style="margin-top: 12px; font-size: 10px; color: var(--text-muted);">AQUECIMENTO DA MÁQUINA</div>
-                    <div class="heat-bar-container">
-                        <div class="heat-bar-fill" id="heat-bar"></div>
+                    <p style="color: var(--text-muted); font-size: 11px; margin-top: 5px;">
+                        Pressione <strong>[ESPAÇO]</strong> ou clique no botão quando a agulha estiver na <strong>Zona Verde</strong>!
+                    </p>
+
+                    <!-- MEDIDOR DE PRECISÃO -->
+                    <div class="gauge-container">
+                        <div class="target-zone" id="target-zone" style="left: 40%; width: 20%;"></div>
+                        <div class="gauge-needle" id="gauge-needle" style="left: 0%;"></div>
                     </div>
+
+                    <button class="btn-forge" onclick="triggerForgeClick()">🔨 FORJAR AGORA [ESPAÇO]</button>
                 </div>
 
-                <!-- AUTOMAÇÃO E EXPANSÃO -->
+                <!-- AUTOMAÇÃO DE ENGENHARIA -->
                 <div class="card">
                     <div class="card-header">
                         <span>AUTOMAÇÃO & ENGENHARIA</span>
-                        <span id="disp-staff-count" style="color: var(--accent-amber);">0 ENGENHEIROS CONTRATADOS</span>
+                        <span id="disp-staff-count" style="color: var(--accent-amber);">0 ENGENHEIROS</span>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 15px;">
                         <div>PLANTA: <strong id="disp-fac-lvl">Nível 1</strong></div>
                         <div>TECNOLOGIA: <strong id="disp-tech-lvl">Nível 1</strong></div>
-                        <div>CAPACIDADE: <strong id="disp-capacity">0 un/ciclo</strong></div>
                         <div>LUCRO AUTO (10S): <strong id="disp-auto-profit" style="color: var(--accent-green);">R$ 0</strong></div>
                     </div>
 
@@ -287,29 +328,20 @@
                     </div>
                 </div>
 
-                <!-- GUERRA DE PREÇOS / DUMPING -->
-                <div class="card">
-                    <div class="card-header"> ESTRATÉGIA DE MERCADO</div>
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="chk-dumping" onchange="toggleDumping(this.checked)">
-                        <span style="color: var(--accent-red); font-weight: bold;">Ativar Guerra de Preços (Dumping) -> Zera margem para roubar faturamento dos rivais</span>
-                    </label>
-                </div>
-
                 <!-- EMPRESAS M&A ADQUIRIDAS -->
                 <div class="card">
-                    <div class="card-header">INDÚSTRIAS GIGANTES SOB SEU CONTROLE</div>
+                    <div class="card-header">INDÚSTRIAS GIGANTES COMPRADAS</div>
                     <table>
                         <thead>
                             <tr>
-                                <th>INDÚSTRIA</th>
+                                <th>INDÚSTRIAS</th>
                                 <th>SETOR</th>
                                 <th>PRODUÇÃO B2B</th>
                                 <th>LUCRO PASSIVO / 10S</th>
                             </tr>
                         </thead>
                         <tbody id="tb-my-giants">
-                            <tr><td colspan="4" style="color: var(--text-muted); text-align: center;">Nenhuma indústria adquirida via leilão.</td></tr>
+                            <tr><td colspan="4" style="color: var(--text-muted); text-align: center;">Nenhuma indústria comprada.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -318,7 +350,7 @@
             <!-- ABA 2: MERCADO B2B -->
             <div id="tab-b2b" class="tab-content">
                 <div class="card">
-                    <div class="card-header">OFERTAR INSUMOS PARA OUTROS JOGADORES</div>
+                    <div class="card-header">VENDER INSUMOS NO MERCADO B2B</div>
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <select id="b2b-type">
                             <option value="steel">Aço Industrial</option>
@@ -326,353 +358,452 @@
                         </select>
                         <input type="number" id="b2b-qty" placeholder="Quantidade" value="10" style="width: 100px;">
                         <input type="number" id="b2b-price" placeholder="Preço Un (R$)" value="800" style="width: 120px;">
-                        <button class="btn btn-amber" onclick="createB2BOrder()">CRIAR ORDEM DE VENDA</button>
+                        <button class="btn btn-amber" onclick="createB2BOrder()">PUBLICAR OFERTA</button>
                     </div>
                 </div>
 
                 <div class="card">
-                    <div class="card-header">LIVRO DE OFERTAS GLOBAL (ORDER BOOK)</div>
+                    <div class="card-header">LIVRO DE OFERTAS GLOBAL</div>
                     <table>
                         <thead>
                             <tr>
                                 <th>VENDEDOR</th>
                                 <th>INSUMO</th>
-                                <th>QUANTIDADE</th>
+                                <th>QTD</th>
                                 <th>PREÇO UN.</th>
                                 <th>TOTAL</th>
                                 <th>AÇÃO</th>
                             </tr>
                         </thead>
-                        <tbody id="tb-b2b-orders">
-                            <!-- Ordens inseridas dinamicamente -->
-                        </tbody>
+                        <tbody id="tb-b2b-orders"></tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- ABA 3: LEILÃO M&A AO VIVO -->
+            <!-- ABA 3: LEILÃO M&A -->
             <div id="tab-leilao" class="tab-content">
                 <div class="card" style="border-color: var(--accent-amber);">
                     <div class="card-header" style="color: var(--accent-amber);">🔨 LEILÃO M&A EM TEMPO REAL</div>
                     <div>
-                        <div style="font-size: 15px; font-weight: bold;" id="auc-giant-name">EMPRESA: SCHULZ COMPRESSORES</div>
+                        <div style="font-size: 15px; font-weight: bold;" id="auc-giant-name">SCHULZ COMPRESSORES</div>
                         <div style="margin: 8px 0;">MAIOR LANCE: <strong id="auc-bid-val" style="color: var(--accent-green); font-size: 18px;">R$ 500.000.000</strong></div>
                         <div>LITIGANTE: <span id="auc-bidder-name" style="color: var(--accent-amber);">SISTEMA</span></div>
-                        <div style="margin: 10px 0;">TEMPO RESTANTE: <span id="auc-timer" style="color: var(--accent-red); font-weight: bold;">00:00</span></div>
 
                         <div style="display: flex; gap: 8px; margin-top: 15px;">
                             <button class="btn btn-amber" onclick="placeAuctionBid(10000000)">+ R$ 10 MILHÕES</button>
                             <button class="btn btn-amber" onclick="placeAuctionBid(50000000)">+ R$ 50 MILHÕES</button>
-                            <button class="btn btn-amber" onclick="placeAuctionBid(100000000)">+ R$ 100 MILHÕES</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- ABA 4: BOLSA DE VALORES & OPA HOSTIL -->
-            <div id="tab-bolsa" class="tab-content">
+            <!-- ABA 4: CHAT, JOGADORES ONLINE & DESAFIO X1 -->
+            <div id="tab-chat" class="tab-content">
                 <div class="card">
-                    <div class="card-header">OFERTA PÚBLICA DE AÇÕES (IPO)</div>
-                    <p style="color: var(--text-muted); margin-bottom: 10px;">Venda participações da sua Holding para captar caixa rápido.</p>
-                    <button class="btn" onclick="issueShares(10)">EMITIR +10% AÇÕES NO MERCADO</button>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">HOLDINGS RIVAIS NO MERCADO (TOMADA DE CONTROLE / OPA)</div>
+                    <div class="card-header">👥 JOGADORES ONLINE & DESAFIOS X1</div>
                     <table>
                         <thead>
                             <tr>
-                                <th>HOLDING RIVAL</th>
+                                <th>JOGADOR</th>
                                 <th>PATRIMÔNIO</th>
-                                <th>AÇÕES DISPONÍVEIS</th>
-                                <th>LOTE (5%)</th>
-                                <th>AÇÃO</th>
+                                <th>AÇÕES</th>
                             </tr>
                         </thead>
-                        <tbody id="tb-rival-holdings">
-                            <!-- Holdings dos rivais -->
+                        <tbody id="tb-online-players">
+                            <tr><td colspan="3" style="color: var(--text-muted);">Procurando jogadores...</td></tr>
                         </tbody>
                     </table>
                 </div>
-            </div>
 
-            <!-- ABA 5: CHAT GLOBAL -->
-            <div id="tab-comms" class="tab-content">
                 <div class="card">
-                    <div class="card-header">REDE DE COMUNICAÇÃO GLOBAL</div>
-                    <div class="log-box" id="chat-feed" style="height: 220px;"></div>
+                    <div class="card-header">💬 CHAT PUBLICO GLOBAL</div>
+                    <div class="log-box" id="public-chat-box"></div>
                     <div style="display: flex; gap: 8px; margin-top: 10px;">
-                        <input type="text" id="chat-input" placeholder="Digite sua mensagem..." style="flex: 1;" onkeypress="if(event.key==='Enter') sendChatMessage()">
-                        <button class="btn" onclick="sendChatMessage()">ENVIAR</button>
+                        <input type="text" id="public-chat-input" placeholder="Mensagem..." style="flex: 1;" onkeypress="if(event.key==='Enter') sendPublicChat()">
+                        <button class="btn" onclick="sendPublicChat()">ENVIAR</button>
+                    </div>
+                </div>
+
+                <!-- CHAT PRIVADO (DM) -->
+                <div class="card" id="private-chat-card" style="display: none; border-color: var(--accent-purple);">
+                    <div class="card-header" style="color: var(--accent-purple);">
+                        <span>💬 CONVERSA PRIVADA COM: <strong id="dm-target-name">---</strong></span>
+                        <button class="btn" style="padding: 2px 6px;" onclick="closeDM()">X</button>
+                    </div>
+                    <div class="log-box" id="private-chat-box"></div>
+                    <div style="display: flex; gap: 8px; margin-top: 10px;">
+                        <input type="text" id="private-chat-input" placeholder="Mensagem privada..." style="flex: 1;" onkeypress="if(event.key==='Enter') sendPrivateChat()">
+                        <button class="btn btn-purple" onclick="sendPrivateChat()">ENVIAR DM</button>
                     </div>
                 </div>
             </div>
         </main>
 
-        <!-- SIDEBAR COM LOG DE AUDITORIA DO SISTEMA -->
+        <!-- SIDEBAR COM LOGS DE SISTEMA -->
         <aside>
             <div class="card">
-                <div class="card-header">LOG DE AUDITORIA</div>
+                <div class="card-header">CONSOLE DE EVENTOS</div>
                 <div class="log-box" id="audit-log">
-                    <div class="log-item" style="color: var(--accent-cyan);">[SYS] Sistema de Operação Inicializado.</div>
+                    <div class="log-item" style="color: var(--accent-cyan);">[SYS] Estação de trabalho iniciada.</div>
                 </div>
             </div>
         </aside>
     </div>
 
+    <!-- MODAL DE DESAFIO E DUELO X1 -->
+    <div class="modal-overlay" id="x1-modal">
+        <div class="modal-card">
+            <h2 style="color: var(--accent-red); margin-bottom: 10px;" id="x1-modal-title">⚔️ DESAFIO X1 DE FORJA</h2>
+            <p id="x1-modal-desc" style="color: var(--text-main); margin-bottom: 20px;">Adversário desafiou você para um duelo!</p>
+
+            <div id="x1-arena-controls" style="display: none;">
+                <div style="font-size: 28px; font-weight: bold; color: var(--accent-amber);" id="x1-timer">15s</div>
+                <div style="display: flex; justify-content: space-around; margin: 20px 0;">
+                    <div>SEU PONTOS: <br><strong style="font-size: 22px; color: var(--accent-green);" id="x1-my-score">0</strong></div>
+                    <div>RIVAL: <br><strong style="font-size: 22px; color: var(--accent-red);" id="x1-rival-score">0</strong></div>
+                </div>
+                <p style="font-size: 11px; color: var(--text-muted);">Use a [BARRA DE ESPAÇO] para acertar a Zona Verde do Minigame!</p>
+            </div>
+
+            <div id="x1-prompt-actions">
+                <button class="btn btn-amber" style="padding: 10px 20px;" onclick="acceptX1Challenge()">ACEITAR DUELO (R$ 10.000)</button>
+                <button class="btn btn-red" style="padding: 10px 20px;" onclick="declineX1Challenge()">RECUSAR</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // --- ESTADO DO JOGO ---
-        const ABLY_KEY = 'SUA_API_KEY_DO_ABLY';
+        const ABLY_KEY = 'SUA_API_KEY_DO_ABLY'; // Insira sua chave da Ably para ativar multiplayer
 
         let myState = {
             name: localStorage.getItem('ind_holding_name') || prompt("DIGITE O NOME DA SUA HOLDING:") || "HOLDING_" + Math.floor(Math.random()*899+100),
             cash: 50000,
             factoryLevel: 1,
             techLevel: 1,
-            staffCount: 0, // Começa sem funcionários!
+            staffCount: 0,
             steel: 0,
             comp: 0,
-            machineHeat: 0,
-            dumping: false,
-            publicShares: 0,
             myGiants: []
         };
 
         localStorage.setItem('ind_holding_name', myState.name);
         document.getElementById('node-name').innerText = myState.name;
 
+        // Dynamic State
+        let onlinePlayers = {};
+        let activeDMTarget = null;
+        let b2bOrders = [];
+
+        // Minigame State
+        let needlePos = 0;
+        let needleSpeed = 1.2;
+        let needleDirection = 1;
+        let targetZoneStart = 40;
+        let targetZoneWidth = 20;
+        let combo = 1;
+
+        // X1 State
+        let activeX1Duel = null;
+        let x1MyScore = 0;
+        let x1RivalScore = 0;
+        let x1TimerInterval = null;
+
         const giantsData = {
             'schulz': { name: 'Schulz Compressores', sector: 'Metalmecânico', item: 'comp', itemQty: 15, income: 45000000 },
-            'tupy': { name: 'Tupy Fundição', sector: 'Metalurgia', item: 'steel', itemQty: 40, income: 55000000 },
-            'tigre': { name: 'Tigre Tubos', sector: 'Construção', item: 'steel', itemQty: 60, income: 95000000 },
-            'weg': { name: 'WEG Equipamentos', sector: 'Eletreletrônico', item: 'comp', itemQty: 80, income: 1800000000 }
+            'tupy': { name: 'Tupy Fundição', sector: 'Metalurgia', item: 'steel', itemQty: 40, income: 55000000 }
         };
-
-        let b2bOrders = [];
-        let rivalHoldings = {};
 
         let activeAuction = {
             giantId: 'schulz',
-            giantName: 'Schulz Compressores (3.5B)',
+            giantName: 'Schulz Compressores',
             currentBid: 500000000,
-            highestBidder: 'SISTEMA',
-            endsAt: Date.now() + 180000
+            highestBidder: 'SISTEMA'
         };
 
-        // --- OPERAÇÃO MANUAL DA MÁQUINA ---
-        function operateMachineManual() {
-            if (myState.machineHeat >= 100) {
-                logAudit('⚠️ Prensa superaquecida! Aguarde o resfriamento.');
-                return;
-            }
+        // --- LOOP DO MINIGAME DE PRECISÃO ---
+        function updateGaugeMinigame() {
+            needlePos += needleSpeed * needleDirection;
+            if (needlePos >= 100) { needlePos = 100; needleDirection = -1; }
+            if (needlePos <= 0) { needlePos = 0; needleDirection = 1; }
 
-            myState.cash += 2500;
-            myState.steel += 2;
-            myState.machineHeat = Math.min(100, myState.machineHeat + 15);
-
-            document.getElementById('heat-bar').style.width = myState.machineHeat + '%';
-            updateUI();
+            document.getElementById('gauge-needle').style.left = needlePos + '%';
+            requestAnimationFrame(updateGaugeMinigame);
         }
+        requestAnimationFrame(updateGaugeMinigame);
 
-        // Resfriamento continuo da máquina
-        setInterval(() => {
-            if (myState.machineHeat > 0) {
-                myState.machineHeat = Math.max(0, myState.machineHeat - 8);
-                document.getElementById('heat-bar').style.width = myState.machineHeat + '%';
-            }
-        }, 500);
+        function triggerForgeClick() {
+            const isHit = needlePos >= targetZoneStart && needlePos <= (targetZoneStart + targetZoneWidth);
 
-        // --- AUTOMATIC CYCLE (10s) ---
-        setInterval(() => {
-            if (myState.staffCount > 0) {
-                const steelNeeded = myState.factoryLevel * 2;
-                const compNeeded = myState.factoryLevel * 1;
+            if (isHit) {
+                combo++;
+                const reward = 3000 * combo;
+                myState.cash += reward;
+                myState.steel += 2;
 
-                let efficiency = 1.0;
-                if (myState.steel >= steelNeeded && myState.comp >= compNeeded) {
-                    myState.steel -= steelNeeded;
-                    myState.comp -= compNeeded;
-                } else {
-                    efficiency = 0.5; // Penalidade por escassez de matéria-prima
-                    logAudit('⚠️ Falta de insumos! Eficiência automatizada caiu para 50%.');
+                logAudit(`🎯 ACERTO PERFEITO! +R$ ${formatMoney(reward)} | +2 Aço (Combo x${combo})`);
+
+                if (activeX1Duel) {
+                    x1MyScore += 10 * combo;
+                    document.getElementById('x1-my-score').innerText = x1MyScore;
+                    sendX1ScoreUpdate();
                 }
 
-                let autoProfit = (myState.factoryLevel * 10000) * (1 + (myState.techLevel - 1) * 0.3) * (myState.staffCount * 0.2) * efficiency;
-                if (myState.dumping) autoProfit *= 1.4;
+                // Move Target Zone randomly
+                targetZoneStart = Math.floor(Math.random() * 60) + 10;
+                targetZoneWidth = Math.max(12, 25 - combo);
+                needleSpeed = Math.min(3.5, 1.2 + combo * 0.2);
 
-                myState.cash += Math.floor(autoProfit);
+                document.getElementById('target-zone').style.left = targetZoneStart + '%';
+                document.getElementById('target-zone').style.width = targetZoneWidth + '%';
+            } else {
+                combo = 1;
+                needleSpeed = 1.2;
+                targetZoneWidth = 20;
+                logAudit(`❌ ERROU A TIMING! Combo resetado.`);
             }
 
-            // Rendimento das Gigantes Adquiridas
-            myState.myGiants.forEach(gId => {
-                const g = giantsData[gId];
-                myState.cash += g.income;
-                if (g.item === 'steel') myState.steel += g.itemQty;
-                if (g.item === 'comp') myState.comp += g.itemQty;
-            });
-
+            document.getElementById('combo-display').innerText = `x${combo} COMBO`;
             updateUI();
-        }, 10000);
+        }
 
-        // --- CONTROLES DE EXPANSÃO ---
-        function hireStaff() {
-            const cost = Math.floor(25000 * Math.pow(1.3, myState.staffCount));
-            if (myState.cash >= cost) {
-                myState.cash -= cost;
-                myState.staffCount++;
-                logAudit(`Engenheiro contratado. Total: ${myState.staffCount}`);
-                updateUI();
+        // Event Listener do Teclado (Barra de Espaço)
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
+                e.preventDefault();
+                triggerForgeClick();
             }
-        }
+        });
 
-        function expFactory() {
-            const cost = Math.floor(100000 * Math.pow(1.6, myState.factoryLevel - 1));
-            if (myState.cash >= cost) {
-                myState.cash -= cost;
-                myState.factoryLevel++;
-                logAudit(`Planta fabril expandida para Nível ${myState.factoryLevel}`);
-                updateUI();
-            }
-        }
-
-        function expTech() {
-            const cost = Math.floor(50000 * Math.pow(1.8, myState.techLevel - 1));
-            if (myState.cash >= cost) {
-                myState.cash -= cost;
-                myState.techLevel++;
-                logAudit(`P&D Tecnológico avançou para Nível ${myState.techLevel}`);
-                updateUI();
-            }
-        }
-
-        function toggleDumping(val) {
-            myState.dumping = val;
-            logAudit(val ? '⚠️ Guerra de preços ativada.' : 'Guerra de preços desativada.');
-        }
-
-        // --- MULTIPLAYER REALTIME (ABLY) ---
+        // --- MULTIPLAYER REALTIME & X1 DUELS (ABLY) ---
         let ably, channel;
         try {
             if (ABLY_KEY && ABLY_KEY !== 'SUA_API_KEY_DO_ABLY') {
                 ably = new Ably.Realtime({ key: ABLY_KEY, clientId: myState.name });
-                channel = ably.channels.get('industrial-room-v1');
+                channel = ably.channels.get('b2b-x1-room');
 
-                channel.subscribe('chat', (msg) => {
-                    addChatMsg(msg.data.sender, msg.data.text);
+                channel.subscribe('presence-ping', (msg) => {
+                    if (msg.data.sender !== myState.name) {
+                        onlinePlayers[msg.data.sender] = msg.data;
+                        renderOnlinePlayers();
+                    }
                 });
 
-                channel.subscribe('b2b-order', (msg) => {
-                    b2bOrders.push(msg.data);
-                    renderB2BOrders();
+                channel.subscribe('public-chat', (msg) => {
+                    addPublicChatMsg(msg.data.sender, msg.data.text);
                 });
 
-                channel.subscribe('auction-bid', (msg) => {
-                    if (msg.data.bid > activeAuction.currentBid) {
-                        activeAuction.currentBid = msg.data.bid;
-                        activeAuction.highestBidder = msg.data.bidder;
-                        updateAuctionUI();
+                channel.subscribe('private-chat', (msg) => {
+                    if (msg.data.target === myState.name) {
+                        openDM(msg.data.sender);
+                        addPrivateChatMsg(msg.data.sender, msg.data.text);
+                    }
+                });
+
+                channel.subscribe('x1-challenge', (msg) => {
+                    if (msg.data.target === myState.name) {
+                        activeX1Duel = { challenger: msg.data.sender, bet: msg.data.bet };
+                        showX1ChallengeModal(msg.data.sender, msg.data.bet);
+                    }
+                });
+
+                channel.subscribe('x1-response', (msg) => {
+                    if (msg.data.target === myState.name && msg.data.accepted) {
+                        startX1Match();
+                    }
+                });
+
+                channel.subscribe('x1-score-sync', (msg) => {
+                    if (activeX1Duel && msg.data.sender !== myState.name) {
+                        x1RivalScore = msg.data.score;
+                        document.getElementById('x1-rival-score').innerText = x1RivalScore;
                     }
                 });
             }
         } catch(e) { console.warn("Offline"); }
 
-        // --- MERCADO B2B ---
-        function createB2BOrder() {
-            const type = document.getElementById('b2b-type').value;
-            const qty = parseInt(document.getElementById('b2b-qty').value);
-            const price = parseInt(document.getElementById('b2b-price').value);
+        // Presence Ping
+        setInterval(() => {
+            if (channel) {
+                channel.publish('presence-ping', { sender: myState.name, netWorth: calculateNetWorth() });
+            }
+        }, 4000);
 
-            if (type === 'steel' && myState.steel < qty) return alert("Aço insuficiente!");
-            if (type === 'comp' && myState.comp < qty) return alert("Componentes insuficientes!");
+        // --- LÓGICA DE DUELO X1 ---
+        function challengePlayerX1(playerName) {
+            if (myState.cash < 10000) return alert("Você precisa de pelo menos R$ 10.000 para apostar no X1!");
+            if (channel) {
+                channel.publish('x1-challenge', { sender: myState.name, target: playerName, bet: 10000 });
+                logAudit(`⚔️ Desafio X1 enviado para ${playerName}! Aguardando resposta...`);
+            }
+        }
 
-            if (type === 'steel') myState.steel -= qty;
-            if (type === 'comp') myState.comp -= qty;
+        function showX1ChallengeModal(challenger, bet) {
+            document.getElementById('x1-modal-title').innerText = "⚔️ DESAFIO X1 DE FORJA";
+            document.getElementById('x1-modal-desc').innerText = `${challenger} desafiou você para um duelo X1 de 15s! Aposta: R$ ${formatMoney(bet)}`;
+            document.getElementById('x1-prompt-actions').style.display = 'block';
+            document.getElementById('x1-arena-controls').style.display = 'none';
+            document.getElementById('x1-modal').style.display = 'flex';
+        }
 
-            const order = { id: 'ORD_' + Math.random().toString(36).substr(2,5), seller: myState.name, type, qty, price, total: qty * price };
-            b2bOrders.push(order);
-            if (channel) channel.publish('b2b-order', order);
-            renderB2BOrders();
+        function acceptX1Challenge() {
+            if (myState.cash < activeX1Duel.bet) return alert("Saldo insuficiente!");
+            if (channel) channel.publish('x1-response', { sender: myState.name, target: activeX1Duel.challenger, accepted: true });
+            startX1Match();
+        }
+
+        function declineX1Challenge() {
+            document.getElementById('x1-modal').style.display = 'none';
+            activeX1Duel = null;
+        }
+
+        function startX1Match() {
+            x1MyScore = 0;
+            x1RivalScore = 0;
+            let timeLeft = 15;
+
+            document.getElementById('x1-prompt-actions').style.display = 'none';
+            document.getElementById('x1-arena-controls').style.display = 'block';
+            document.getElementById('x1-modal').style.display = 'flex';
+
+            x1TimerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('x1-timer').innerText = timeLeft + 's';
+
+                if (timeLeft <= 0) {
+                    clearInterval(x1TimerInterval);
+                    finishX1Match();
+                }
+            }, 1000);
+        }
+
+        function sendX1ScoreUpdate() {
+            if (channel) channel.publish('x1-score-sync', { sender: myState.name, score: x1MyScore });
+        }
+
+        function finishX1Match() {
+            document.getElementById('x1-modal').style.display = 'none';
+
+            if (x1MyScore > x1RivalScore) {
+                myState.cash += 10000;
+                alert(`🏆 VOCÊ VENCEU O X1! (${x1MyScore} vs ${x1RivalScore}). Ganhou R$ 10.000!`);
+                logAudit(`🏆 Vitória no X1 contra rival! (+R$ 10.000)`);
+            } else if (x1MyScore < x1RivalScore) {
+                myState.cash -= 10000;
+                alert(`💀 VOCÊ PERDEU O X1... (${x1MyScore} vs ${x1RivalScore}). Perdeu R$ 10.000.`);
+                logAudit(`💀 Derrota no X1 contra rival.`);
+            } else {
+                alert(`🤝 EMPATE NO X1!`);
+            }
+
+            activeX1Duel = null;
             updateUI();
         }
 
-        function buyB2BOrder(id) {
-            const ord = b2bOrders.find(o => o.id === id);
-            if (!ord || myState.cash < ord.total) return alert("Saldo insuficiente!");
-
-            myState.cash -= ord.total;
-            if (ord.type === 'steel') myState.steel += ord.qty;
-            if (ord.type === 'comp') myState.comp += ord.qty;
-
-            b2bOrders = b2bOrders.filter(o => o.id !== id);
-            renderB2BOrders();
-            updateUI();
+        // --- SISTEMA DE CHAT PRIVADO (DM) ---
+        function openDM(targetName) {
+            activeDMTarget = targetName;
+            document.getElementById('dm-target-name').innerText = targetName;
+            document.getElementById('private-chat-card').style.display = 'block';
         }
 
-        function renderB2BOrders() {
-            const tb = document.getElementById('tb-b2b-orders');
+        function closeDM() {
+            document.getElementById('private-chat-card').style.display = 'none';
+            activeDMTarget = null;
+        }
+
+        function sendPrivateChat() {
+            const inp = document.getElementById('private-chat-input');
+            const txt = inp.value.trim();
+            if (txt && activeDMTarget) {
+                addPrivateChatMsg(myState.name, txt);
+                if (channel) channel.publish('private-chat', { sender: myState.name, target: activeDMTarget, text: txt });
+                inp.value = '';
+            }
+        }
+
+        function addPrivateChatMsg(sender, txt) {
+            const box = document.getElementById('private-chat-box');
+            box.innerHTML += `<div class="log-item"><strong style="color: var(--accent-purple);">${sender}:</strong> ${txt}</div>`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function sendPublicChat() {
+            const inp = document.getElementById('public-chat-input');
+            const txt = inp.value.trim();
+            if (txt) {
+                addPublicChatMsg(myState.name, txt);
+                if (channel) channel.publish('public-chat', { sender: myState.name, text: txt });
+                inp.value = '';
+            }
+        }
+
+        function addPublicChatMsg(sender, txt) {
+            const box = document.getElementById('public-chat-box');
+            box.innerHTML += `<div class="log-item"><strong>${sender}:</strong> ${txt}</div>`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function renderOnlinePlayers() {
+            const tb = document.getElementById('tb-online-players');
             tb.innerHTML = '';
-            b2bOrders.forEach(o => {
+            Object.values(onlinePlayers).forEach(p => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${o.seller}</td>
-                    <td>${o.type === 'steel' ? 'AÇO' : 'COMPONENTES'}</td>
-                    <td>${o.qty} UN</td>
-                    <td>R$ ${o.price}</td>
-                    <td style="color: var(--accent-green);">R$ ${formatMoney(o.total)}</td>
-                    <td>${o.seller !== myState.name ? `<button class="btn btn-amber" onclick="buyB2BOrder('${o.id}')">COMPRAR</button>` : 'SUA ORDEM'}</td>
+                    <td>${p.sender}</td>
+                    <td>R$ ${formatMoney(p.netWorth)}</td>
+                    <td>
+                        <button class="btn btn-purple" onclick="openDM('${p.sender}')">💬 DM</button>
+                        <button class="btn btn-amber" onclick="challengePlayerX1('${p.sender}')">⚔️ DESAFIAR X1</button>
+                    </td>
                 `;
                 tb.appendChild(tr);
             });
         }
 
-        // --- LEILÃO ---
-        function placeAuctionBid(amount) {
-            const newBid = activeAuction.currentBid + amount;
-            if (myState.cash < newBid) return alert("Caixa insuficiente para cobrir o lance!");
+        // --- CICLO AUTOMÁTICO (10S) ---
+        setInterval(() => {
+            if (myState.staffCount > 0) {
+                const autoProfit = (myState.factoryLevel * 8000) * (myState.staffCount * 0.3);
+                myState.cash += Math.floor(autoProfit);
+            }
+            updateUI();
+        }, 10000);
 
-            activeAuction.currentBid = newBid;
-            activeAuction.highestBidder = myState.name;
-            if (channel) channel.publish('auction-bid', { bidder: myState.name, bid: newBid });
-            updateAuctionUI();
+        // --- UTILITÁRIOS E UI ---
+        function calculateNetWorth() {
+            return myState.cash + (myState.factoryLevel * 250000) + (myState.techLevel * 150000);
         }
 
-        function updateAuctionUI() {
-            document.getElementById('auc-giant-name').innerText = activeAuction.giantName;
-            document.getElementById('auc-bid-val').innerText = 'R$ ' + formatMoney(activeAuction.currentBid);
-            document.getElementById('auc-bidder-name').innerText = activeAuction.highestBidder;
-        }
-
-        // --- ATUALIZAÇÃO DA INTERFACE ---
         function updateUI() {
-            const netWorth = myState.cash + (myState.factoryLevel * 250000) + (myState.techLevel * 150000);
-
             document.getElementById('hud-cash').innerText = 'R$ ' + formatMoney(myState.cash);
-            document.getElementById('hud-networth').innerText = 'R$ ' + formatMoney(netWorth);
+            document.getElementById('hud-networth').innerText = 'R$ ' + formatMoney(calculateNetWorth());
             document.getElementById('hud-steel').innerText = myState.steel + ' UN';
             document.getElementById('hud-comp').innerText = myState.comp + ' UN';
 
-            document.getElementById('disp-staff-count').innerText = `${myState.staffCount} ENGENHEIROS CONTRATADOS`;
+            document.getElementById('disp-staff-count').innerText = `${myState.staffCount} ENGENHEIROS`;
             document.getElementById('disp-fac-lvl').innerText = 'Nível ' + myState.factoryLevel;
             document.getElementById('disp-tech-lvl').innerText = 'Nível ' + myState.techLevel;
-            document.getElementById('disp-capacity').innerText = (myState.factoryLevel * 100) + ' un/ciclo';
 
-            const autoProfit = (myState.factoryLevel * 10000) * (1 + (myState.techLevel - 1) * 0.3) * (myState.staffCount * 0.2);
+            const autoProfit = (myState.factoryLevel * 8000) * (myState.staffCount * 0.3);
             document.getElementById('disp-auto-profit').innerText = 'R$ ' + formatMoney(autoProfit);
-
-            const costStaff = Math.floor(25000 * Math.pow(1.3, myState.staffCount));
-            const costFac = Math.floor(100000 * Math.pow(1.6, myState.factoryLevel - 1));
-            const costTech = Math.floor(50000 * Math.pow(1.8, myState.techLevel - 1));
-
-            document.getElementById('btn-buy-staff').innerText = `👥 CONTRATAR ENGENHEIRO (R$ ${formatMoney(costStaff)})`;
-            document.getElementById('btn-exp-fac').innerText = `🏭 EXPANDIR PLANTA (R$ ${formatMoney(costFac)})`;
-            document.getElementById('btn-exp-tech').innerText = `🔬 PESQUISA & DESENV. (R$ ${formatMoney(costTech)})`;
-
-            document.getElementById('btn-buy-staff').disabled = myState.cash < costStaff;
-            document.getElementById('btn-exp-fac').disabled = myState.cash < costFac;
-            document.getElementById('btn-exp-tech').disabled = myState.cash < costTech;
         }
 
-        // --- NAVEGAÇÃO ENTRE ABAS ---
+        function hireStaff() {
+            const cost = Math.floor(25000 * Math.pow(1.3, myState.staffCount));
+            if (myState.cash >= cost) { myState.cash -= cost; myState.staffCount++; updateUI(); }
+        }
+
+        function expFactory() {
+            const cost = Math.floor(100000 * Math.pow(1.6, myState.factoryLevel - 1));
+            if (myState.cash >= cost) { myState.cash -= cost; myState.factoryLevel++; updateUI(); }
+        }
+
+        function expTech() {
+            const cost = Math.floor(50000 * Math.pow(1.8, myState.techLevel - 1));
+            if (myState.cash >= cost) { myState.cash -= cost; myState.techLevel++; updateUI(); }
+        }
+
         function switchTab(tabId, btn) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
@@ -683,21 +814,6 @@
         function logAudit(msg) {
             const box = document.getElementById('audit-log');
             box.innerHTML += `<div class="log-item">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
-            box.scrollTop = box.scrollHeight;
-        }
-
-        function sendChatMessage() {
-            const inp = document.getElementById('chat-input');
-            if (inp.value.trim()) {
-                addChatMsg(myState.name, inp.value.trim());
-                if (channel) channel.publish('chat', { sender: myState.name, text: inp.value.trim() });
-                inp.value = '';
-            }
-        }
-
-        function addChatMsg(sender, text) {
-            const box = document.getElementById('chat-feed');
-            box.innerHTML += `<div class="log-item"><strong>${sender}:</strong> ${text}</div>`;
             box.scrollTop = box.scrollHeight;
         }
 
