@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monopoly GPS - Arquitetura Desacoplada</title>
+    <title>Monopoly GPS - Real World Edition</title>
 
     <!-- Leaflet (Mapa) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- Ably (Multiplayer & Estado do Jogo) -->
+    <!-- Ably (Multiplayer em Tempo Real) -->
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
 
     <style>
@@ -82,7 +82,7 @@
 
     <script>
         // --- 1. CONFIGURAÇÕES E ESTADO DO JOGO ---
-        const ABLY_KEY = '6mtFVg.r4FswQ:gALyOJRv59kDDrMtl9aEF3C85Rg3X2ye6rBDBN1WDLs'; // Cole sua chave do Ably aqui
+        const ABLY_KEY = 'SUA_API_KEY_DO_ABLY'; // Insira sua chave da API do Ably
         const playerName = prompt("Nome do seu investidor:") || "Investidor_" + Math.floor(Math.random() * 100);
         const myDeviceId = playerName + '-' + Math.random().toString(36).substring(2, 6);
         
@@ -93,7 +93,6 @@
         let myCoords = null;
         let firstLocation = true;
 
-        // Armazenamento em memória (Sem depender de API externa para compras)
         const companies = {};
         const companyMarkers = {};
         const playerMarkers = {};
@@ -108,9 +107,8 @@
         });
 
         // --- 2. COMUNICAÇÃO EM TEMPO REAL (ABLY) ---
-        // Toda a lógica do jogo (comprar, trocar, mover) roda por aqui!
         const ably = new Ably.Realtime({ key: ABLY_KEY, clientId: myDeviceId });
-        const channel = ably.channels.get('monopoly-gps-v3');
+        const channel = ably.channels.get('monopoly-gps-v4');
 
         ably.connection.on('connected', () => {
             channel.presence.enter({ name: playerName });
@@ -123,11 +121,9 @@
             });
         });
 
-        // Ouve eventos do jogo enviados por QUALQUER jogador
         channel.subscribe('game-event', (msg) => {
             const data = msg.data;
 
-            // Movimento de outro jogador
             if (data.type === 'move' && data.id !== myDeviceId) {
                 if (!playerMarkers[data.id]) {
                     playerMarkers[data.id] = L.circleMarker([data.coords.lat, data.coords.lng], { color: 'red', radius: 8 })
@@ -137,12 +133,10 @@
                 }
             }
 
-            // Uma nova empresa foi descoberta e adicionada ao mapa global
             if (data.type === 'new-company') {
                 registerCompany(data.company);
             }
 
-            // Transação: Alguém comprou uma empresa (Zero requisição à API de Mapas)
             if (data.type === 'purchase') {
                 if (companies[data.companyId]) {
                     companies[data.companyId].owner = data.buyerName;
@@ -151,134 +145,114 @@
                 }
             }
 
-            // Chat
             if (data.type === 'chat') {
                 addLog(data.name, data.message);
             }
         });
 
-      // --- 3. CAMADA SECUNDÁRIA: API DE MAPAS COM MÚLTIPLOS ESPELHOS (FALLBACKS) ---
+        // --- 3. INTEGRAÇÃO COM A API DE MAPAS (OVERPASS KUMI HTTPS) ---
+        let isScanning = false;
 
-// --- 3. INTEGRAÇÃO ESTÁVEL COM NOMINATIM + FALLBACK LOCAL ---
+        function triggerManualScan() {
+            if (!myCoords) return alert("Aguardando localização do GPS...");
+            fetchRealPlacesFromAPI(myCoords);
+        }
 
-let isScanning = false;
+        async function fetchRealPlacesFromAPI(coords) {
+            if (isScanning) return;
+            
+            isScanning = true;
+            const btn = document.getElementById('scan-button');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = "⏳ Escaneando...";
+            }
 
-function triggerManualScan() {
-    if (!myCoords) return alert("Aguardando localização do GPS...");
-    fetchRealPlacesFromAPI(myCoords);
-}
+            addLog("Radar", "Buscando comércios reais da sua rua...");
+            let placesFound = [];
 
-async function fetchRealPlacesFromAPI(coords) {
-    if (isScanning) return;
-    
-    isScanning = true;
-    const btn = document.getElementById('scan-button');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerText = "⏳ Escaneando...";
-    }
+            const radius = 600; // Raio de busca de 600 metros
+            const query = `[out:json][timeout:10];(node["name"]["amenity"](around:${radius},${coords.lat},${coords.lng});node["name"]["shop"](around:${radius},${coords.lat},${coords.lng}););out body 15;`;
+            const kumiUrl = 'https://overpass.kumi.systems/api/interpreter?data=' + encodeURIComponent(query);
 
-    addLog("Radar", "Buscando comércios com a API de mapas...");
-    let placesFound = [];
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-    // --- CAMADA 1: NOMINATIM REVERSE / SEARCH (Oficial OSM, HTTPS e Compatível com Vercel) ---
-    try {
-        const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&lat=${coords.lat}&lon=${coords.lng}&bounded=1&viewbox=${coords.lng-0.005},${coords.lat+0.005},${coords.lng+0.005},${coords.lat-0.005}&amenity=*&limit=15`;
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+                const res = await fetch(kumiUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
 
-        const res = await fetch(nominatimUrl, {
-            headers: { 'Accept-Language': 'pt-BR' },
-            signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-
-        if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data) && data.length > 0) {
-                data.forEach(item => {
-                    if (item.display_name && item.lat && item.lon) {
-                        // Extrai um nome curto para o estabelecimento
-                        const shortName = item.display_name.split(',')[0];
-                        const cat = item.type || item.class || 'Comércio';
-
-                        placesFound.push({
-                            id: 'nom_' + item.place_id,
-                            name: shortName,
-                            category: cat,
-                            price: calculatePrice(cat),
-                            lat: parseFloat(item.lat),
-                            lng: parseFloat(item.lon),
-                            owner: null
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.elements && data.elements.length > 0) {
+                        data.elements.forEach(place => {
+                            const tags = place.tags || {};
+                            if (place.lat && place.lon && tags.name) {
+                                const cat = tags.amenity || tags.shop || 'Comércio';
+                                placesFound.push({
+                                    id: 'real_' + place.id,
+                                    name: tags.name,
+                                    category: cat,
+                                    price: calculatePrice(cat),
+                                    lat: place.lat,
+                                    lng: place.lon,
+                                    owner: null
+                                });
+                            }
                         });
                     }
-                });
+                }
+            } catch (e) {
+                console.warn("Servidor de mapas ocupado:", e);
             }
+
+            // Fallback caso a região não possua locais cadastrados com nome
+            if (placesFound.length === 0) {
+                addLog("Radar", "Poucos locais mapeados na área. Gerando estabelecimentos...");
+                placesFound = generateEmergencyLocalPlaces(coords);
+            } else {
+                addLog("Radar", `${placesFound.length} locais REAIS mapeados!`);
+            }
+
+            // Publica os locais no canal global
+            placesFound.forEach(comp => {
+                channel.publish('game-event', { type: 'new-company', company: comp });
+            });
+
+            setTimeout(() => {
+                isScanning = false;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = "🔍 Escanear Região";
+                }
+            }, 5000);
         }
-    } catch (e) {
-        console.warn("Nominatim indisponível. Ativando radar local de emergência...");
-    }
 
-    // --- CAMADA 2: RADAR LOCAL (Garantia de Funcionamento 100% das vezes) ---
-    if (placesFound.length === 0) {
-        addLog("Radar", "Gerando comércios na sua localização atual...");
-        placesFound = generateEmergencyLocalPlaces(coords);
-    }
+        function generateEmergencyLocalPlaces(coords) {
+            const comers = [
+                { name: "Farmácia Central", cat: "pharmacy", price: 8000 },
+                { name: "Supermercado Express", cat: "supermarket", price: 12000 },
+                { name: "Padaria & Confeitaria", cat: "bakery", price: 5000 },
+                { name: "Posto de Combustível", cat: "fuel", price: 9000 },
+                { name: "Restaurante & Hamburgueria", cat: "restaurant", price: 6000 },
+                { name: "Conveniência 24h", cat: "convenience", price: 4000 }
+            ];
 
-    // --- REGISTRA OS IMÓVEIS NO JOGO E SINCRONIZA NO ABLY ---
-    let count = 0;
-    placesFound.forEach(comp => {
-        channel.publish('game-event', { type: 'new-company', company: comp });
-        count++;
-    });
-
-    addLog("Radar", `Scan finalizado! ${count} imóveis mapeados.`);
-
-    setTimeout(() => {
-        isScanning = false;
-        if (btn) {
-            btn.disabled = false;
-            btn.innerText = "🔍 Escanear Região";
+            return comers.map((item, idx) => {
+                const angle = (idx / comers.length) * 2 * Math.PI;
+                const radius = 0.0015 + (Math.random() * 0.001);
+                
+                return {
+                    id: 'local_' + Math.floor(coords.lat * 1000) + '_' + idx,
+                    name: item.name,
+                    category: item.cat,
+                    price: item.price,
+                    lat: coords.lat + (Math.sin(angle) * radius),
+                    lng: coords.lng + (Math.cos(angle) * radius),
+                    owner: null
+                };
+            });
         }
-    }, 5000);
-}
-
-// Gerador Local Inteligente (Usa suas coordenadas reais como centro)
-function generateEmergencyLocalPlaces(coords) {
-    const comers = [
-        { name: "Farmácia Central", cat: "pharmacy", price: 8000 },
-        { name: "Supermercado Express", cat: "supermarket", price: 12000 },
-        { name: "Padaria & Confeitaria", cat: "bakery", price: 5000 },
-        { name: "Posto de Combustível", cat: "fuel", price: 9000 },
-        { name: "Restaurante & Hamburgueria", cat: "restaurant", price: 6000 },
-        { name: "Conveniência 24h", cat: "convenience", price: 4000 }
-    ];
-
-    return comers.map((item, idx) => {
-        // Distribui os pontos em um raio aproximado de 100m a 250m ao redor do jogador
-        const angle = (idx / comers.length) * 2 * Math.PI;
-        const radius = 0.0015 + (Math.random() * 0.001); // ~150 metros
-        
-        const latOffset = Math.sin(angle) * radius;
-        const lngOffset = Math.cos(angle) * radius;
-
-        return {
-            id: 'local_' + Math.floor(coords.lat * 1000) + '_' + idx,
-            name: item.name,
-            category: item.cat,
-            price: item.price,
-            lat: coords.lat + latOffset,
-            lng: coords.lng + lngOffset,
-            owner: null
-        };
-    });
-}
-
-        // Cronograma: Executa o scan automático a cada 3 minutos (180.000 ms)
-        setInterval(() => {
-            if (myCoords) fetchRealPlacesFromAPI(myCoords);
-        }, 180000);
 
         function calculatePrice(category) {
             const cat = category.toLowerCase();
@@ -288,9 +262,8 @@ function generateEmergencyLocalPlaces(coords) {
             return 3000;
         }
 
-        // --- 4. GERENCIAMENTO DE EMPRESAS (LOCAL E REDE) ---
+        // --- 4. REGISTRO E COMPRA DE EMPRESAS ---
         function registerCompany(comp) {
-            // Se a empresa já existe no mapa, preserva o dono atual e descarta duplicados
             if (companies[comp.id]) return;
 
             companies[comp.id] = comp;
@@ -317,7 +290,6 @@ function generateEmergencyLocalPlaces(coords) {
             marker.bindPopup(html);
         }
 
-        // --- 5. AÇÕES DO JOGADOR (100% INDEPENDENTE DA API DE MAPAS) ---
         window.buyCompany = function(compId) {
             const comp = companies[compId];
 
@@ -327,7 +299,6 @@ function generateEmergencyLocalPlaces(coords) {
                 document.getElementById('money-display').innerText = myMoney.toLocaleString('pt-BR');
                 document.getElementById('companies-display').innerText = myCompaniesCount;
 
-                // Transmite a compra instantaneamente via WebSockets
                 channel.publish('game-event', {
                     type: 'purchase',
                     companyId: compId,
@@ -340,14 +311,14 @@ function generateEmergencyLocalPlaces(coords) {
             }
         };
 
-        // --- 6. GEOLOCALIZAÇÃO E CHAT ---
+        // --- 5. GEOLOCALIZAÇÃO E CHAT ---
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition((pos) => {
                 myCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
 
                 if (firstLocation) {
                     map.setView([myCoords.lat, myCoords.lng], 16);
-                    fetchRealPlacesFromAPI(myCoords); // Primeiro scan automático ao entrar
+                    fetchRealPlacesFromAPI(myCoords);
                     firstLocation = false;
                 }
 
