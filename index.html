@@ -159,7 +159,7 @@
 
       // --- 3. CAMADA SECUNDÁRIA: API DE MAPAS COM MÚLTIPLOS ESPELHOS (FALLBACKS) ---
 
-// --- 3. SISTEMA TRIPLE-LAYER DE BUSCA DE MAPAS (PHOTON + OVERPASS + EMERGENCY) ---
+// --- 3. INTEGRAÇÃO ESTÁVEL COM NOMINATIM + FALLBACK LOCAL ---
 
 let isScanning = false;
 
@@ -178,34 +178,38 @@ async function fetchRealPlacesFromAPI(coords) {
         btn.innerText = "⏳ Escaneando...";
     }
 
-    addLog("Radar", "Iniciando radar de imóveis reais...");
+    addLog("Radar", "Buscando comércios com a API de mapas...");
     let placesFound = [];
 
-    // --- CAMADA 1: PHOTON API (Komoot - Ultra Rápida & Estável) ---
+    // --- CAMADA 1: NOMINATIM REVERSE / SEARCH (Oficial OSM, HTTPS e Compatível com Vercel) ---
     try {
-        const photonUrl = `https://photon.komoot.io/api/?lat=${coords.lat}&lon=${coords.lng}&limit=15`;
+        const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&lat=${coords.lat}&lon=${coords.lng}&bounded=1&viewbox=${coords.lng-0.005},${coords.lat+0.005},${coords.lng+0.005},${coords.lat-0.005}&amenity=*&limit=15`;
+        
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s limit
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-        const res = await fetch(photonUrl, { signal: controller.signal });
+        const res = await fetch(nominatimUrl, {
+            headers: { 'Accept-Language': 'pt-BR' },
+            signal: controller.signal
+        });
         clearTimeout(timeoutId);
 
         if (res.ok) {
             const data = await res.json();
-            if (data.features && data.features.length > 0) {
-                data.features.forEach(f => {
-                    const props = f.properties || {};
-                    const coordsGeo = f.geometry ? f.geometry.coordinates : null; // [lng, lat]
+            if (Array.isArray(data) && data.length > 0) {
+                data.forEach(item => {
+                    if (item.display_name && item.lat && item.lon) {
+                        // Extrai um nome curto para o estabelecimento
+                        const shortName = item.display_name.split(',')[0];
+                        const cat = item.type || item.class || 'Comércio';
 
-                    // Filtra apenas pontos com nome e válidos perto de você
-                    if (props.name && coordsGeo && (props.osm_value || props.osm_key === 'amenity' || props.osm_key === 'shop')) {
                         placesFound.push({
-                            id: 'photon_' + (props.osm_id || Math.random().toString(36).substr(2, 6)),
-                            name: props.name,
-                            category: props.osm_value || props.type || 'Comércio',
-                            price: calculatePrice(props.osm_value || ''),
-                            lat: coordsGeo[1], // Latitude real
-                            lng: coordsGeo[0], // Longitude real
+                            id: 'nom_' + item.place_id,
+                            name: shortName,
+                            category: cat,
+                            price: calculatePrice(cat),
+                            lat: parseFloat(item.lat),
+                            lng: parseFloat(item.lon),
                             owner: null
                         });
                     }
@@ -213,69 +217,23 @@ async function fetchRealPlacesFromAPI(coords) {
             }
         }
     } catch (e) {
-        console.warn("Photon API indisponível ou expirou. Tentando Overpass...");
+        console.warn("Nominatim indisponível. Ativando radar local de emergência...");
     }
 
-    // --- CAMADA 2: OVERPASS MIRRORS (Caso a Photon não encontre nada) ---
+    // --- CAMADA 2: RADAR LOCAL (Garantia de Funcionamento 100% das vezes) ---
     if (placesFound.length === 0) {
-        const OVERPASS_MIRRORS = [
-            'https://overpass-api.de/api/interpreter',
-            'https://overpass.kumi.systems/api/interpreter',
-            'https://overpass.nchc.org.tw/api/interpreter',
-            'https://overpass.private.coffee/api/interpreter'
-        ];
-
-        const radius = 500;
-        const query = `[out:json][timeout:5];(node["name"]["amenity"](around:${radius},${coords.lat},${coords.lng});node["name"]["shop"](around:${radius},${coords.lat},${coords.lng}););out body 10;`;
-
-        for (const mirrorUrl of OVERPASS_MIRRORS) {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3500);
-
-                const response = await fetch(mirrorUrl + '?data=' + encodeURIComponent(query), { signal: controller.signal });
-                clearTimeout(timeoutId);
-
-                if (!response.ok) continue;
-                const data = await response.json();
-
-                if (data && data.elements) {
-                    data.elements.forEach(place => {
-                        const tags = place.tags || {};
-                        if (place.lat && place.lon && tags.name) {
-                            placesFound.push({
-                                id: 'osm_' + place.id,
-                                name: tags.name,
-                                category: tags.amenity || tags.shop || 'Comércio',
-                                price: calculatePrice(tags.amenity || tags.shop || ''),
-                                lat: place.lat,
-                                lng: place.lon,
-                                owner: null
-                            });
-                        }
-                    });
-                    if (placesFound.length > 0) break; 
-                }
-            } catch (err) {
-                console.warn(`Mirror ${mirrorUrl} indisponível.`);
-            }
-        }
-    }
-
-    // --- CAMADA 3: REDE DE SEGURANÇA (Gera locais se TODAS as APIs falharem) ---
-    if (placesFound.length === 0) {
-        addLog("Radar", "APIs externas instáveis. Modo de Emergência ativado!");
+        addLog("Radar", "Gerando comércios na sua localização atual...");
         placesFound = generateEmergencyLocalPlaces(coords);
     }
 
-    // --- REGISTRA E TRANSMITE OS IMÓVEIS ENCONTRADOS ---
+    // --- REGISTRA OS IMÓVEIS NO JOGO E SINCRONIZA NO ABLY ---
     let count = 0;
     placesFound.forEach(comp => {
         channel.publish('game-event', { type: 'new-company', company: comp });
         count++;
     });
 
-    addLog("Radar", `Scan finalizado! ${count} imóveis mapeados na região.`);
+    addLog("Radar", `Scan finalizado! ${count} imóveis mapeados.`);
 
     setTimeout(() => {
         isScanning = false;
@@ -283,26 +241,30 @@ async function fetchRealPlacesFromAPI(coords) {
             btn.disabled = false;
             btn.innerText = "🔍 Escanear Região";
         }
-    }, 6000);
+    }, 5000);
 }
 
-// Gerador do Modo de Emergência (Garante que sempre haverá jogo, mesmo offline)
+// Gerador Local Inteligente (Usa suas coordenadas reais como centro)
 function generateEmergencyLocalPlaces(coords) {
-    const tipos = [
+    const comers = [
+        { name: "Farmácia Central", cat: "pharmacy", price: 8000 },
         { name: "Supermercado Express", cat: "supermarket", price: 12000 },
-        { name: "Farmácia 24h", cat: "pharmacy", price: 8000 },
-        { name: "Padaria & Café Ponto", cat: "bakery", price: 5000 },
-        { name: "Posto de Combustível Central", cat: "fuel", price: 9000 },
-        { name: "Restaurante Sabor Local", cat: "restaurant", price: 6000 }
+        { name: "Padaria & Confeitaria", cat: "bakery", price: 5000 },
+        { name: "Posto de Combustível", cat: "fuel", price: 9000 },
+        { name: "Restaurante & Hamburgueria", cat: "restaurant", price: 6000 },
+        { name: "Conveniência 24h", cat: "convenience", price: 4000 }
     ];
 
-    return tipos.map((item, idx) => {
-        // Espalha os pontos entre 100m e 300m ao redor da latitude/longitude atual do jogador
-        const latOffset = (Math.random() - 0.5) * 0.003;
-        const lngOffset = (Math.random() - 0.5) * 0.003;
+    return comers.map((item, idx) => {
+        // Distribui os pontos em um raio aproximado de 100m a 250m ao redor do jogador
+        const angle = (idx / comers.length) * 2 * Math.PI;
+        const radius = 0.0015 + (Math.random() * 0.001); // ~150 metros
+        
+        const latOffset = Math.sin(angle) * radius;
+        const lngOffset = Math.cos(angle) * radius;
 
         return {
-            id: 'emergencia_' + Date.now() + '_' + idx,
+            id: 'local_' + Math.floor(coords.lat * 1000) + '_' + idx,
             name: item.name,
             category: item.cat,
             price: item.price,
