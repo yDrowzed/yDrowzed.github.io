@@ -4,11 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Industrial Tycoon - Do Zero ao Império Bilionário</title>
-    <!-- Meta Tags para Compartilhamento (SEO/OpenGraph) -->
+
+    <!-- Meta Tags para SEO & Redes Sociais -->
     <meta name="description" content="Simulador de gestão industrial e M&A. Construa seu império bilionário!">
-    <meta property="og:title" content="Industrial Tycoon">
+    <meta property="og:title" content="Industrial Tycoon - Gestão e Fusões">
     <meta property="og:description" content="Gerencie fábricas, invista em P&D e adquira gigantes industriais no mercado global.">
     <meta property="og:type" content="website">
+    <meta name="theme-color" content="#0b0f19">
+
+    <!-- Favicon SVG Embutido -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏭</text></svg>">
 
     <!-- Ably SDK para Multiplayer em Tempo Real -->
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
@@ -21,26 +26,49 @@
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --accent: #6366f1;
+            --accent-hover: #4f46e5;
             --accent-green: #22c55e;
             --accent-gold: #f59e0b;
             --accent-red: #ef4444;
             --border: #2e3a52;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
         body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
 
         /* Header / HUD */
         header {
-            background: var(--card-bg); border-bottom: 1px solid var(--border);
-            padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;
+            background: rgba(21, 28, 44, 0.95);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 20px; display: flex; justify-content: space-between; align-items: center;
             position: sticky; top: 0; z-index: 100;
         }
-        .player-info h1 { font-size: 18px; color: var(--text-main); }
+        .player-info h1 { font-size: 18px; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
         .player-info p { font-size: 12px; color: var(--text-muted); }
+        .hud-actions { display: flex; align-items: center; gap: 15px; }
+        .sound-toggle { background: var(--card-accent); border: 1px solid var(--border); color: var(--text-main); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+
         .wallet { text-align: right; position: relative; }
-        .wallet .balance { font-size: 22px; font-weight: bold; color: var(--accent-green); }
+        .wallet .balance { font-size: 22px; font-weight: 800; color: var(--accent-green); }
         .wallet .net-worth { font-size: 12px; color: var(--text-muted); }
+
+        /* Banner de Evento do Mercado */
+        .event-banner {
+            background: linear-gradient(90deg, #1e1b4b, #311b92);
+            border-bottom: 1px solid var(--accent);
+            padding: 8px 16px; font-size: 13px; text-align: center; font-weight: 600; color: #c7d2fe;
+            display: none; animation: fadeIn 0.3s ease;
+        }
+
+        /* Menu Mobile de Abas */
+        .mobile-tabs {
+            display: none; background: var(--card-bg); border-bottom: 1px solid var(--border); padding: 5px;
+        }
+        .tab-btn {
+            flex: 1; background: transparent; border: none; color: var(--text-muted); padding: 8px; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 6px;
+        }
+        .tab-btn.active { background: var(--accent); color: white; }
 
         /* Dashboard Container */
         .dashboard {
@@ -48,13 +76,16 @@
             padding: 20px; flex: 1; max-width: 1400px; margin: 0 auto; width: 100%;
         }
 
-        @media (max-width: 950px) {
-            .dashboard { grid-template-columns: 1fr; }
+        @media (max-width: 900px) {
+            .mobile-tabs { display: flex; }
+            .dashboard { grid-template-columns: 1fr; padding: 12px; }
+            .tab-content { display: none; }
+            .tab-content.active { display: block; }
         }
 
-        .section-title { font-size: 16px; margin-bottom: 12px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+        .section-title { font-size: 15px; margin-bottom: 12px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
 
-        /* Aba da Minha Empresa */
+        /* Card da Empresa */
         .my-company-box {
             background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
             padding: 20px; margin-bottom: 25px; position: relative; overflow: hidden;
@@ -71,12 +102,12 @@
         }
 
         .my-company-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        .my-company-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; margin-bottom: 15px; }
-        .stat-card { background: var(--card-accent); padding: 10px; border-radius: 8px; border: 1px solid var(--border); }
-        .stat-card span { font-size: 11px; color: var(--text-muted); display: block; }
-        .stat-card strong { font-size: 15px; color: var(--text-main); }
+        .my-company-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 15px; }
+        .stat-card { background: var(--card-accent); padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
+        .stat-card span { font-size: 10px; color: var(--text-muted); display: block; text-transform: uppercase; font-weight: 700; }
+        .stat-card strong { font-size: 15px; color: var(--text-main); margin-top: 2px; display: block; }
 
-        .actions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+        .actions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
         
         /* Botões Globais */
         .btn {
@@ -84,41 +115,40 @@
             border-radius: 8px; font-weight: bold; cursor: pointer; transition: all 0.2s;
             display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 12px; gap: 2px;
         }
-        .btn:hover:not(:disabled) { background: #4f46e5; transform: translateY(-1px); }
-        .btn:disabled { background: var(--border); cursor: not-allowed; opacity: 0.5; transform: none; }
-        .btn-sub { font-size: 10px; font-weight: normal; opacity: 0.8; }
+        .btn:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn:active:not(:disabled) { transform: translateY(0); }
+        .btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; opacity: 0.6; transform: none; }
+        .btn-sub { font-size: 10px; font-weight: normal; opacity: 0.85; }
         .btn-gold { background: var(--accent-gold); color: #000; }
         .btn-gold:hover:not(:disabled) { background: #d97706; }
-        .btn-reset { background: transparent; color: var(--text-muted); border: 1px solid var(--border); font-size: 10px; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+        .btn-reset { background: transparent; color: var(--text-muted); border: 1px solid var(--border); font-size: 11px; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
         .btn-reset:hover { color: var(--accent-red); border-color: var(--accent-red); }
 
-        /* Grid de Gigantes Reais */
-        .industry-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;
+        /* Conquistas / Achievements */
+        .achievements-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-bottom: 25px; }
+        .achievement-card {
+            background: var(--card-bg); border: 1px solid var(--border); padding: 10px; border-radius: 8px; opacity: 0.5; transition: all 0.3s;
         }
+        .achievement-card.unlocked { opacity: 1; border-color: var(--accent-gold); background: rgba(245, 158, 11, 0.05); }
+        .achievement-card .title { font-size: 12px; font-weight: bold; }
+        .achievement-card .desc { font-size: 10px; color: var(--text-muted); }
 
-        .industry-card {
-            background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
-            padding: 16px; display: flex; flex-direction: column; gap: 10px; position: relative;
-        }
-
+        /* Grid de Indústrias M&A */
+        .industry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+        .industry-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
         .ind-header { display: flex; justify-content: space-between; align-items: flex-start; }
         .ind-name { font-weight: bold; font-size: 15px; }
         .ind-sector { font-size: 10px; background: #312e81; color: #a5b4fc; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
-        
-        .ind-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; margin: 6px 0; }
+        .ind-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; margin: 4px 0; }
         .ind-details span { color: var(--text-muted); font-size: 10px; display: block; }
-        .ind-details strong { color: var(--text-main); }
-
         .ind-owner { font-size: 11px; color: var(--accent-gold); font-weight: 500; background: rgba(245, 158, 11, 0.1); padding: 4px 8px; border-radius: 6px; }
 
-        /* Chat e Ranking */
+        /* Chat e Ranking Sidebar */
         .sidebar { display: flex; flex-direction: column; gap: 20px; }
         .panel-box { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; }
-
         .chat-box { height: 320px; }
         .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 12px; margin-bottom: 10px; }
-        .chat-msg { background: var(--bg-color); padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--accent); }
+        .chat-msg { background: var(--bg-color); padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--accent); word-break: break-word; }
         .chat-msg.sys { border-left-color: var(--accent-green); color: var(--text-muted); }
         
         .chat-input { display: flex; gap: 8px; }
@@ -128,116 +158,142 @@
         .ranking-list { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
         .ranking-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
 
-        /* Animação Flutuante do Ganho de Dinheiro */
+        /* Animação Flutuante (+R$) */
         .floating-money {
-            position: fixed; color: var(--accent-green); font-weight: bold;
-            font-size: 14px; pointer-events: none; z-index: 1000;
-            animation: floatUp 1.2s ease-out forwards;
+            position: fixed; color: var(--accent-green); font-weight: 800; font-size: 14px;
+            pointer-events: none; z-index: 1000; animation: floatUp 1.2s ease-out forwards;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
 
         @keyframes floatUp {
             0% { opacity: 1; transform: translateY(0); }
             100% { opacity: 0; transform: translateY(-35px); }
         }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
 
+    <!-- Header / HUD Principal -->
     <header>
         <div class="player-info">
-            <h1 id="player-display">Holding Industrial</h1>
+            <h1 id="player-display">🏭 Holding Industrial</h1>
             <p>Servidor: <span id="online-status" style="color: var(--accent-green)">Conectando...</span></p>
         </div>
-        <div class="wallet">
-            <div class="balance" id="balance-display">R$ 500.000</div>
-            <div class="net-worth">Patrimônio Líquido: <span id="networth-display" style="color: var(--accent-gold); font-weight: bold;">R$ 500.000</span></div>
+        <div class="hud-actions">
+            <button class="sound-toggle" id="sound-btn" onclick="toggleSound()">🔊 Som: ON</button>
+            <div class="wallet">
+                <div class="balance" id="balance-display">R$ 500.000</div>
+                <div class="net-worth">Patrimônio Líquido: <span id="networth-display" style="color: var(--accent-gold); font-weight: bold;">R$ 500.000</span></div>
+            </div>
         </div>
     </header>
 
+    <!-- Banner de Eventos Econômicos -->
+    <div id="event-banner" class="event-banner">📢 Evento do Mercado</div>
+
+    <!-- Abas de Navegação Responsiva (Mobile) -->
+    <div class="mobile-tabs">
+        <button class="tab-btn active" onclick="switchTab('empresa-tab', this)">🏭 Empresa</button>
+        <button class="tab-btn" onclick="switchTab('ma-tab', this)">🏬 M&A</button>
+        <button class="tab-btn" onclick="switchTab('conquistas-tab', this)">🏆 Conquistas</button>
+        <button class="tab-btn" onclick="switchTab('chat-tab', this)">💬 Chat</button>
+    </div>
+
     <div class="dashboard">
         <main>
-            <!-- SEÇÃO 1: SUA PRÓPRIA EMPRESA -->
-            <div class="my-company-box">
-                <div class="cycle-progress-container" title="Ciclo de Faturamento">
-                    <div class="cycle-progress-bar" id="cycle-progress"></div>
-                </div>
-
-                <div class="my-company-header">
-                    <div>
-                        <h2 id="my-company-name">Sua Fábrica Inicial</h2>
-                        <span style="font-size: 12px; color: var(--text-muted);" id="my-company-level">Nível 1 - Galpão de Usinagem</span>
+            <!-- ABA 1: SUA FÁBRICA / EMPRESA -->
+            <div id="empresa-tab" class="tab-content active">
+                <div class="my-company-box">
+                    <div class="cycle-progress-container" title="Progresso do Ciclo (10s)">
+                        <div class="cycle-progress-bar" id="cycle-progress"></div>
                     </div>
-                    <div style="text-align: right;">
-                        <span style="font-size: 11px; color: var(--text-muted);">VALOR DE MERCADO DA SUA EMPRESA</span>
-                        <h3 id="my-company-val" style="color: var(--accent-green);">R$ 500.000</h3>
-                    </div>
-                </div>
 
-                <!-- Estatísticas Operacionais da Empresa -->
-                <div class="my-company-stats">
-                    <div class="stat-card">
-                        <span>LUCRO/CICLO (10s)</span>
-                        <strong id="my-income-display" style="color: var(--accent-green);">+ R$ 15.000</strong>
+                    <div class="my-company-header">
+                        <div>
+                            <h2 id="my-company-name">Sua Fábrica Inicial</h2>
+                            <span style="font-size: 12px; color: var(--text-muted);" id="my-company-level">Nível 1 - Galpão de Usinagem</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 11px; color: var(--text-muted);">VALOR DA SUA EMPRESA</span>
+                            <h3 id="my-company-val" style="color: var(--accent-green);">R$ 500.000</h3>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <span>CAPACIDADE FABRIL</span>
-                        <strong id="my-capacity-display">100 un/mês</strong>
+
+                    <!-- Métricas -->
+                    <div class="my-company-stats">
+                        <div class="stat-card">
+                            <span>LUCRO/CICLO (10s)</span>
+                            <strong id="my-income-display" style="color: var(--accent-green);">+ R$ 15.000</strong>
+                        </div>
+                        <div class="stat-card">
+                            <span>CAPACIDADE FABRIL</span>
+                            <strong id="my-capacity-display">100 un/mês</strong>
+                        </div>
+                        <div class="stat-card">
+                            <span>TECNOLOGIA (P&D)</span>
+                            <strong id="my-tech-display">Nível 1</strong>
+                        </div>
+                        <div class="stat-card">
+                            <span>ENGENHEIROS</span>
+                            <strong id="my-staff-display">5 Funcionários</strong>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <span>TECNOLOGIA (P&D)</span>
-                        <strong id="my-tech-display">Nível 1</strong>
+
+                    <!-- Botões de Ações -->
+                    <div class="section-title">
+                        <span>🚀 Investimentos em Expansão</span>
+                        <button class="btn-reset" onclick="resetProgress()">Reiniciar Progresso</button>
                     </div>
-                    <div class="stat-card">
-                        <span>EQUIPE DE ENGENHARIA</span>
-                        <strong id="my-staff-display">5 Funcionários</strong>
+                    <div class="actions-grid">
+                        <button class="btn" id="btn-upgrade-factory" onclick="upgradeFactory()">
+                            <span>🏭 Expandir Planta Fabril</span>
+                            <span class="btn-sub" id="cost-upgrade-factory">Custo: R$ 100.000</span>
+                        </button>
+
+                        <button class="btn" id="btn-upgrade-tech" onclick="upgradeTech()">
+                            <span>🔬 Pesquisa e Desenvolvimento</span>
+                            <span class="btn-sub" id="cost-upgrade-tech">Custo: R$ 50.000</span>
+                        </button>
+
+                        <button class="btn" id="btn-hire-staff" onclick="hireStaff()">
+                            <span>👥 Contratar Engenheiros</span>
+                            <span class="btn-sub" id="cost-hire-staff">Custo: R$ 25.000</span>
+                        </button>
+
+                        <button class="btn btn-gold" id="btn-loan" onclick="takeLoan()">
+                            <span>🏦 Empréstimo Bancário</span>
+                            <span class="btn-sub" id="loan-sub">+ R$ 200.000 (Juros 10%)</span>
+                        </button>
                     </div>
-                </div>
-
-                <!-- Botões de Ações de Crescimento -->
-                <div class="section-title" style="font-size: 13px; margin-top: 15px;">
-                    <span>🚀 Investimentos para Expansão</span>
-                    <button class="btn-reset" onclick="resetProgress()" title="Reiniciar Save">Resetar Progresso</button>
-                </div>
-                <div class="actions-grid">
-                    <button class="btn" id="btn-upgrade-factory" onclick="upgradeFactory()">
-                        <span>🏭 Expandir Planta Fabril</span>
-                        <span class="btn-sub" id="cost-upgrade-factory">Custo: R$ 100.000</span>
-                    </button>
-
-                    <button class="btn" id="btn-upgrade-tech" onclick="upgradeTech()">
-                        <span>🔬 Pesquisa e Desenvolvimento</span>
-                        <span class="btn-sub" id="cost-upgrade-tech">Custo: R$ 50.000</span>
-                    </button>
-
-                    <button class="btn" id="btn-hire-staff" onclick="hireStaff()">
-                        <span>👥 Contratar Engenheiros</span>
-                        <span class="btn-sub" id="cost-hire-staff">Custo: R$ 25.000</span>
-                    </button>
-
-                    <button class="btn btn-gold" id="btn-loan" onclick="takeLoan()">
-                        <span>🏦 Empréstimo Bancário</span>
-                        <span class="btn-sub" id="loan-sub">+ R$ 200.000 (Juros 10%)</span>
-                    </button>
                 </div>
             </div>
 
-            <!-- SEÇÃO 2: MERCADO DE AQUISIÇÕES (M&A BILIONÁRIO) -->
-            <div class="section-title">
-                <h2>🏬 Mercado Global de Fusões e Aquisições (M&A)</h2>
-                <span style="font-size: 11px; color: var(--text-muted)">Valores Reais de Mercado</span>
+            <!-- ABA 2: MERCADO M&A -->
+            <div id="ma-tab" class="tab-content">
+                <div class="section-title">
+                    <h2>🏬 Mercado Global de Fusões e Aquisições (M&A)</h2>
+                    <span style="font-size: 11px; color: var(--text-muted)">Valores Reais de Mercado</span>
+                </div>
+                <div class="industry-grid" id="industry-grid"></div>
             </div>
-            <div class="industry-grid" id="industry-grid">
-                <!-- Cards das Gigantes Reais gerados via JS -->
+
+            <!-- ABA 3: CONQUISTAS -->
+            <div id="conquistas-tab" class="tab-content">
+                <div class="section-title">
+                    <h2>🏆 Quadro de Conquistas</h2>
+                </div>
+                <div class="achievements-grid" id="achievements-grid"></div>
             </div>
         </main>
 
         <!-- SIDEBAR (Chat + Ranking) -->
-        <aside class="sidebar">
+        <aside class="sidebar tab-content" id="chat-tab">
             <div class="panel-box chat-box">
                 <div class="section-title">💬 Chat do Mercado</div>
                 <div class="chat-messages" id="chat-messages"></div>
                 <div class="chat-input">
-                    <input type="text" id="chat-input" placeholder="Mensagem..." onkeypress="if(event.key==='Enter') sendChat()" />
+                    <input type="text" id="chat-input" placeholder="Digite uma mensagem..." onkeypress="if(event.key==='Enter') sendChat()" />
                     <button onclick="sendChat()">Enviar</button>
                 </div>
             </div>
@@ -255,116 +311,220 @@
     </div>
 
     <script>
-        // --- 1. CONFIGURAÇÕES E ESTADO DO JOGO ---
-        const ABLY_KEY = 'SUA_API_KEY_DO_ABLY'; // Cole sua chave Ably para ativar multiplayer real
+        // --- 1. CONFIGURAÇÃO E ESTADO DO JOGO ---
+        const ABLY_KEY = 'SUA_API_KEY_DO_ABLY'; // Cole sua chave Ably para multiplayer real
         
-        let playerName = localStorage.getItem('holding_name');
-        if (!playerName) {
-            playerName = prompt("Digite o Nome da sua Holding / Empresa:") || "Industrial_" + Math.floor(Math.random() * 899 + 100);
-            localStorage.setItem('holding_name', playerName);
+        let gameState = {
+            playerName: localStorage.getItem('holding_name') || '',
+            myCash: 500000,
+            factoryLevel: 1,
+            techLevel: 1,
+            staffCount: 5,
+            loanAmount: 0,
+            ownedGiants: [],
+            achievements: {},
+            soundEnabled: true,
+            lastSaveTime: Date.now()
+        };
+
+        if (!gameState.playerName) {
+            gameState.playerName = prompt("Digite o Nome da sua Holding / Empresa:") || "Industrial_" + Math.floor(Math.random() * 899 + 100);
+            localStorage.setItem('holding_name', gameState.playerName);
         }
         
-        document.getElementById('player-display').innerText = playerName;
-        document.getElementById('my-company-name').innerText = "Indústrias " + playerName;
+        document.getElementById('player-display').innerText = '🏭 ' + gameState.playerName;
+        document.getElementById('my-company-name').innerText = "Indústrias " + gameState.playerName;
 
-        const myId = playerName + '_' + Math.random().toString(36).substring(2, 5);
+        const myId = gameState.playerName + '_' + Math.random().toString(36).substring(2, 5);
 
-        // Caixa e Dados da Sua Empresa
-        let myCash = 500000;
-        let companyVal = 500000;
-        let factoryLevel = 1;
-        let techLevel = 1;
-        let staffCount = 5;
-        let loanAmount = 0;
-
-        // --- 2. AS GIGANTES REAIS E SEUS VALORES REAIS DE MERCADO ---
+        // --- 2. AS GIGANTES REAIS (M&A) ---
         const realGiants = {
             'schulz': { id: 'schulz', name: 'Schulz Compressores', sector: 'Metalmecânico', price: 3500000000, income: 45000000, owner: null },
             'tupy': { id: 'tupy', name: 'Tupy Fundição', sector: 'Metalurgia', price: 4200000000, income: 55000000, owner: null },
             'tigre': { id: 'tigre', name: 'Tigre Tubos', sector: 'Construção', price: 8000000000, income: 95000000, owner: null },
-            'nidec': { id: 'nidec', name: 'Nidec Global Appliance', sector: 'Motores & Compressores', price: 18000000000, income: 210000000, owner: null },
+            'nidec': { id: 'nidec', name: 'Nidec Global Appliance', sector: 'Motores', price: 18000000000, income: 210000000, owner: null },
             'whirlpool': { id: 'whirlpool', name: 'Whirlpool Brasil', sector: 'Eletrodomésticos', price: 25000000000, income: 320000000, owner: null },
             'weg': { id: 'weg', name: 'WEG Equipamentos', sector: 'Eletreletrônico', price: 160000000000, income: 1800000000, owner: null }
         };
 
-        // --- 3. SISTEMA DE SALVAMENTO AUTOMÁTICO ---
-        function saveGame() {
-            const ownedIds = Object.values(realGiants)
-                .filter(ind => ind.owner === playerName)
-                .map(ind => ind.id);
+        // --- 3. CONQUISTAS (ACHIEVEMENTS) ---
+        const achievementsList = {
+            'first_step': { title: 'Primeiro Passo', desc: 'Expanda a planta fabril para Nível 2' },
+            'tech_pioneer': { title: 'Pioneiro em P&D', desc: 'Alcance Nível 3 em Tecnologia' },
+            'first_million': { title: 'Primeiro Milhão', desc: 'Alcance R$ 1.000.000 de patrimônio' },
+            'ma_king': { title: 'Magnata de M&A', desc: 'Adquira sua 1ª indústria gigante' },
+            'billionaire': { title: 'Império Bilionário', desc: 'Alcance R$ 1 Bilhão de patrimônio' }
+        };
 
-            const data = {
-                myCash, factoryLevel, techLevel, staffCount, loanAmount, ownedIds
-            };
-            localStorage.setItem('holding_save_v1', JSON.stringify(data));
+        // --- 4. SINTETIZADOR DE SOM (WEB AUDIO API) ---
+        function playSound(type) {
+            if (!gameState.soundEnabled) return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+
+                if (type === 'coin') {
+                    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+                    osc.start(); osc.stop(ctx.currentTime + 0.25);
+                } else if (type === 'upgrade') {
+                    osc.frequency.setValueAtTime(300, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+                    osc.start(); osc.stop(ctx.currentTime + 0.15);
+                } else if (type === 'click') {
+                    osc.frequency.setValueAtTime(400, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.03, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+                    osc.start(); osc.stop(ctx.currentTime + 0.04);
+                }
+            } catch(e) {}
+        }
+
+        function toggleSound() {
+            gameState.soundEnabled = !gameState.soundEnabled;
+            document.getElementById('sound-btn').innerText = gameState.soundEnabled ? '🔊 Som: ON' : '🔇 Som: OFF';
+            saveGame();
+        }
+
+        // --- 5. SISTEMA DE EVENTOS DO MERCADO ---
+        let currentEventMultiplier = 1.0;
+        
+        function triggerRandomEvent() {
+            if (Math.random() > 0.4) return; // 40% de chance a cada ciclo longo
+            
+            const events = [
+                { text: '📈 Alta na demanda por industrializados! Lucros +25%', mult: 1.25 },
+                { text: '⚠️ Aumento no custo do Aço e Energia! Lucros -15%', mult: 0.85 },
+                { text: '🚀 Incentivo governamental para P&D! Lucros +40%', mult: 1.40 }
+            ];
+
+            const ev = events[Math.floor(Math.random() * events.length)];
+            currentEventMultiplier = ev.mult;
+
+            const banner = document.getElementById('event-banner');
+            banner.innerText = ev.text;
+            banner.style.display = 'block';
+
+            setTimeout(() => {
+                currentEventMultiplier = 1.0;
+                banner.style.display = 'none';
+            }, 25000); // Evento dura 25s
+        }
+        setInterval(triggerRandomEvent, 45000);
+
+        // --- 6. SALVAMENTO E GANHO OFFLINE ---
+        function saveGame() {
+            gameState.ownedGiants = Object.values(realGiants)
+                .filter(ind => ind.owner === gameState.playerName)
+                .map(ind => ind.id);
+            gameState.lastSaveTime = Date.now();
+            localStorage.setItem('holding_save_v2', JSON.stringify(gameState));
         }
 
         function loadGame() {
-            const saved = localStorage.getItem('holding_save_v1');
+            const saved = localStorage.getItem('holding_save_v2');
             if (saved) {
                 try {
                     const data = JSON.parse(saved);
-                    myCash = data.myCash ?? 500000;
-                    factoryLevel = data.factoryLevel ?? 1;
-                    techLevel = data.techLevel ?? 1;
-                    staffCount = data.staffCount ?? 5;
-                    loanAmount = data.loanAmount ?? 0;
-                    if (Array.isArray(data.ownedIds)) {
-                        data.ownedIds.forEach(id => {
-                            if (realGiants[id]) realGiants[id].owner = playerName;
+                    gameState = { ...gameState, ...data };
+                    if (Array.isArray(gameState.ownedGiants)) {
+                        gameState.ownedGiants.forEach(id => {
+                            if (realGiants[id]) realGiants[id].owner = gameState.playerName;
                         });
                     }
-                } catch(e) { console.error("Erro ao carregar dados salvos:", e); }
+
+                    // Cálculo do Rendimento Offline
+                    const now = Date.now();
+                    const secondsOffline = Math.floor((now - (gameState.lastSaveTime || now)) / 1000);
+                    if (secondsOffline >= 20) {
+                        const cycles = Math.floor(secondsOffline / 10);
+                        const incomePerCycle = calculateIncome();
+                        const offlineEarnings = incomePerCycle * Math.min(cycles, 8640); // Teto de 24 horas
+                        
+                        gameState.myCash += offlineEarnings;
+                        setTimeout(() => {
+                            logSys(`👋 Bem-vindo de volta! Suas empresas renderam **R$ ${formatMoney(offlineEarnings)}** enquanto esteve ausente.`);
+                        }, 1000);
+                    }
+                } catch(e) { console.error(e); }
             }
         }
 
         function resetProgress() {
-            if (confirm("Deseja realmente reiniciar todo o seu progresso no jogo?")) {
-                localStorage.removeItem('holding_save_v1');
+            if (confirm("Tem certeza que deseja reiniciar todo seu império industrial?")) {
+                localStorage.removeItem('holding_save_v2');
                 location.reload();
             }
         }
 
-        // --- 4. CÁLCULOS E ATUALIZAÇÃO DA TELA ---
+        // --- 7. LÓGICA E MÉTODOS DO JOGO ---
         function calculateIncome() {
-            return Math.floor((factoryLevel * 15000) * (1 + (techLevel - 1) * 0.4) * (1 + (staffCount - 5) * 0.05));
+            const baseIncome = Math.floor((gameState.factoryLevel * 15000) * (1 + (gameState.techLevel - 1) * 0.4) * (1 + (gameState.staffCount - 5) * 0.05));
+            return Math.floor(baseIncome * currentEventMultiplier);
         }
 
         function calculateCompanyVal() {
-            return Math.floor(500000 + (factoryLevel * 250000) + (techLevel * 150000) + (staffCount * 30000) + (calculateIncome() * 20));
+            return Math.floor(500000 + (gameState.factoryLevel * 250000) + (gameState.techLevel * 150000) + (gameState.staffCount * 30000) + (calculateIncome() * 20));
+        }
+
+        function checkAchievements() {
+            const totalNetWorth = (gameState.myCash + calculateCompanyVal()) - gameState.loanAmount;
+
+            if (gameState.factoryLevel >= 2) unlockAchievement('first_step');
+            if (gameState.techLevel >= 3) unlockAchievement('tech_pioneer');
+            if (totalNetWorth >= 1000000) unlockAchievement('first_million');
+            if (gameState.ownedGiants.length >= 1) unlockAchievement('ma_king');
+            if (totalNetWorth >= 1000000000) unlockAchievement('billionaire');
+        }
+
+        function unlockAchievement(id) {
+            if (!gameState.achievements[id]) {
+                gameState.achievements[id] = true;
+                logSys(`🏆 CONQUISTA DESBLOQUEADA: **${achievementsList[id].title}**!`);
+                playSound('upgrade');
+                renderAchievements();
+                saveGame();
+            }
         }
 
         function updateUI() {
-            companyVal = calculateCompanyVal();
+            const companyVal = calculateCompanyVal();
             const income = calculateIncome();
 
-            document.getElementById('balance-display').innerText = 'R$ ' + formatMoney(myCash);
-            const totalNetWorth = (myCash + companyVal) - loanAmount;
+            document.getElementById('balance-display').innerText = 'R$ ' + formatMoney(gameState.myCash);
+            const totalNetWorth = (gameState.myCash + companyVal) - gameState.loanAmount;
             document.getElementById('networth-display').innerText = 'R$ ' + formatMoney(totalNetWorth);
             document.getElementById('rank-my-worth').innerText = 'R$ ' + formatMoney(totalNetWorth);
 
             document.getElementById('my-company-val').innerText = 'R$ ' + formatMoney(companyVal);
             document.getElementById('my-income-display').innerText = '+ R$ ' + formatMoney(income);
-            document.getElementById('my-capacity-display').innerText = (factoryLevel * 100) + ' un/mês';
-            document.getElementById('my-tech-display').innerText = 'Nível ' + techLevel;
-            document.getElementById('my-staff-display').innerText = staffCount + ' Engenheiros';
+            document.getElementById('my-capacity-display').innerText = (gameState.factoryLevel * 100) + ' un/mês';
+            document.getElementById('my-tech-display').innerText = 'Nível ' + gameState.techLevel;
+            document.getElementById('my-staff-display').innerText = gameState.staffCount + ' Engenheiros';
 
-            const costFactory = Math.floor(100000 * Math.pow(1.6, factoryLevel - 1));
-            const costTech = Math.floor(50000 * Math.pow(1.8, techLevel - 1));
-            const costStaff = Math.floor(25000 * Math.pow(1.3, (staffCount - 5)));
+            const costFactory = Math.floor(100000 * Math.pow(1.6, gameState.factoryLevel - 1));
+            const costTech = Math.floor(50000 * Math.pow(1.8, gameState.techLevel - 1));
+            const costStaff = Math.floor(25000 * Math.pow(1.3, (gameState.staffCount - 5)));
 
             document.getElementById('cost-upgrade-factory').innerText = 'Custo: R$ ' + formatMoney(costFactory);
             document.getElementById('cost-upgrade-tech').innerText = 'Custo: R$ ' + formatMoney(costTech);
             document.getElementById('cost-hire-staff').innerText = 'Custo: R$ ' + formatMoney(costStaff);
 
-            document.getElementById('btn-upgrade-factory').disabled = myCash < costFactory;
-            document.getElementById('btn-upgrade-tech').disabled = myCash < costTech;
-            document.getElementById('btn-hire-staff').disabled = myCash < costStaff;
+            document.getElementById('btn-upgrade-factory').disabled = gameState.myCash < costFactory;
+            document.getElementById('btn-upgrade-tech').disabled = gameState.myCash < costTech;
+            document.getElementById('btn-hire-staff').disabled = gameState.myCash < costStaff;
 
-            if(factoryLevel < 3) document.getElementById('my-company-level').innerText = 'Fase Inicial - Galpão de Usinagem';
-            else if(factoryLevel < 7) document.getElementById('my-company-level').innerText = 'Fase Média - Complexo Industrial Regional';
+            if(gameState.factoryLevel < 3) document.getElementById('my-company-level').innerText = 'Fase Inicial - Galpão de Usinagem';
+            else if(gameState.factoryLevel < 7) document.getElementById('my-company-level').innerText = 'Fase Média - Complexo Industrial Regional';
             else document.getElementById('my-company-level').innerText = 'Fase Avançada - Conglomerado Multinacional';
 
+            checkAchievements();
             renderGiants();
         }
 
@@ -376,9 +536,9 @@
                 const card = document.createElement('div');
                 card.className = 'industry-card';
 
-                const isOwner = ind.owner === playerName;
+                const isOwner = ind.owner === gameState.playerName;
                 const ownerText = ind.owner ? (isOwner ? 'Sua Propriedade!' : ind.owner) : 'Disponível para Aquisição';
-                const canBuy = myCash >= ind.price && !isOwner;
+                const canBuy = gameState.myCash >= ind.price && !isOwner;
 
                 card.innerHTML = `
                     <div class="ind-header">
@@ -387,11 +547,11 @@
                     </div>
                     <div class="ind-details">
                         <div>
-                            <span>VALOR TOTAL (VIDA REAL)</span>
+                            <span>VALOR TOTAL</span>
                             <strong style="color: var(--accent-gold);">R$ ${formatMoney(ind.price)}</strong>
                         </div>
                         <div>
-                            <span>LUCRO PASSIVO / 10s</span>
+                            <span>LUCRO / 10s</span>
                             <strong style="color: var(--accent-green);">+ R$ ${formatMoney(ind.income)}</strong>
                         </div>
                     </div>
@@ -399,42 +559,62 @@
                     <button class="btn" style="margin-top: 5px;"
                         ${!canBuy ? 'disabled' : ''} 
                         onclick="buyGiant('${ind.id}')">
-                        ${isOwner ? 'Você é o Dono Majoritário' : 'Comprar Indústria Bilionária'}
+                        ${isOwner ? 'Dono Majoritário' : 'Comprar Indústria'}
                     </button>
                 `;
                 grid.appendChild(card);
             });
         }
 
-        // --- 5. AÇÕES DA SUA EMPRESA ---
+        function renderAchievements() {
+            const container = document.getElementById('achievements-grid');
+            container.innerHTML = '';
+
+            Object.keys(achievementsList).forEach(id => {
+                const ach = achievementsList[id];
+                const isUnlocked = !!gameState.achievements[id];
+                const card = document.createElement('div');
+                card.className = `achievement-card ${isUnlocked ? 'unlocked' : ''}`;
+                card.innerHTML = `
+                    <div class="title">${isUnlocked ? '🏆' : '🔒'} ${ach.title}</div>
+                    <div class="desc">${ach.desc}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // --- 8. AÇÕES DE COMPRA ---
         function upgradeFactory() {
-            const cost = Math.floor(100000 * Math.pow(1.6, factoryLevel - 1));
-            if (myCash >= cost) {
-                myCash -= cost;
-                factoryLevel++;
-                logSys(`Planta fabril expandida para o Nível ${factoryLevel}!`);
+            const cost = Math.floor(100000 * Math.pow(1.6, gameState.factoryLevel - 1));
+            if (gameState.myCash >= cost) {
+                gameState.myCash -= cost;
+                gameState.factoryLevel++;
+                playSound('upgrade');
+                logSys(`Planta fabril expandida para o Nível ${gameState.factoryLevel}!`);
                 saveGame();
                 updateUI();
             }
         }
 
         function upgradeTech() {
-            const cost = Math.floor(50000 * Math.pow(1.8, techLevel - 1));
-            if (myCash >= cost) {
-                myCash -= cost;
-                techLevel++;
-                logSys(`Pesquisa concluída! Tecnologia avançou para Nível ${techLevel}.`);
+            const cost = Math.floor(50000 * Math.pow(1.8, gameState.techLevel - 1));
+            if (gameState.myCash >= cost) {
+                gameState.myCash -= cost;
+                gameState.techLevel++;
+                playSound('upgrade');
+                logSys(`Pesquisa concluída! Tecnologia Nível ${gameState.techLevel}.`);
                 saveGame();
                 updateUI();
             }
         }
 
         function hireStaff() {
-            const cost = Math.floor(25000 * Math.pow(1.3, (staffCount - 5)));
-            if (myCash >= cost) {
-                myCash -= cost;
-                staffCount += 5;
-                logSys(`Contratados +5 engenheiros. Total: ${staffCount}.`);
+            const cost = Math.floor(25000 * Math.pow(1.3, (gameState.staffCount - 5)));
+            if (gameState.myCash >= cost) {
+                gameState.myCash -= cost;
+                gameState.staffCount += 5;
+                playSound('upgrade');
+                logSys(`Contratados +5 engenheiros. Total: ${gameState.staffCount}.`);
                 saveGame();
                 updateUI();
             }
@@ -442,8 +622,9 @@
 
         function takeLoan() {
             const loanVal = 200000;
-            myCash += loanVal;
-            loanAmount += Math.floor(loanVal * 1.1);
+            gameState.myCash += loanVal;
+            gameState.loanAmount += Math.floor(loanVal * 1.1);
+            playSound('coin');
             logSys(`Empréstimo de R$ 200.000 aprovado no banco!`);
             saveGame();
             updateUI();
@@ -451,20 +632,21 @@
 
         function buyGiant(id) {
             const ind = realGiants[id];
-            if (myCash >= ind.price && !ind.owner) {
-                myCash -= ind.price;
-                ind.owner = playerName;
-                logSys(`🎉 INCRÍVEL! Sua Holding adquiriu a **${ind.name}** por R$ ${formatMoney(ind.price)}!`);
+            if (gameState.myCash >= ind.price && !ind.owner) {
+                gameState.myCash -= ind.price;
+                ind.owner = gameState.playerName;
+                playSound('coin');
+                logSys(`🎉 INCRÍVEL! Sua Holding adquiriu a **${ind.name}**!`);
 
                 if (channel) {
-                    channel.publish('giant-buy', { buyer: playerName, indName: ind.name, price: ind.price, id: id });
+                    channel.publish('giant-buy', { buyer: gameState.playerName, indName: ind.name, price: ind.price, id: id });
                 }
                 saveGame();
                 updateUI();
             }
         }
 
-        // --- 6. CICLO DE TEMPO (10 Segundos com Barra de Progresso) ---
+        // --- 9. CICLO TEMPORIZADO (10 SEC) ---
         const CYCLE_DURATION = 10000;
         let cycleTimer = 0;
         const tickRate = 100;
@@ -484,21 +666,21 @@
             let totalDividendos = calculateIncome();
 
             Object.values(realGiants).forEach(ind => {
-                if (ind.owner === playerName) {
+                if (ind.owner === gameState.playerName) {
                     totalDividendos += ind.income;
                 }
             });
 
-            if (loanAmount > 0) {
-                const pay = Math.min(10000, loanAmount);
-                loanAmount -= pay;
+            if (gameState.loanAmount > 0) {
+                const pay = Math.min(10000, gameState.loanAmount);
+                gameState.loanAmount -= pay;
                 totalDividendos -= pay;
             }
 
-            myCash += totalDividendos;
+            gameState.myCash += totalDividendos;
             
-            // Efeito visual flutuante do lucro
             if (totalDividendos > 0) {
+                playSound('coin');
                 const balanceEl = document.getElementById('balance-display');
                 showFloatingText(`+ R$ ${formatMoney(totalDividendos)}`, balanceEl);
             }
@@ -519,12 +701,12 @@
             setTimeout(() => el.remove(), 1200);
         }
 
-        // --- 7. MULTIPLAYER COM ABLY ---
+        // --- 10. MULTIPLAYER (ABLY) ---
         let ably, channel;
         try {
             if (ABLY_KEY && ABLY_KEY !== 'SUA_API_KEY_DO_ABLY') {
                 ably = new Ably.Realtime({ key: ABLY_KEY, clientId: myId });
-                channel = ably.channels.get('industrial-real-v1');
+                channel = ably.channels.get('industrial-real-v2');
 
                 ably.connection.on('connected', () => {
                     document.getElementById('online-status').innerText = 'Online';
@@ -535,32 +717,31 @@
                     const data = msg.data;
                     if (realGiants[data.id]) {
                         realGiants[data.id].owner = data.buyer;
-                        if (data.buyer !== playerName) {
-                            logSys(`⚠️ O concorrente **${data.buyer}** acaba de comprar a **${data.indName}**!`);
+                        if (data.buyer !== gameState.playerName) {
+                            logSys(`⚠️ Concorrente **${data.buyer}** comprou a **${data.indName}**!`);
                         }
                         updateUI();
                     }
                 });
 
                 channel.subscribe('chat', (msg) => {
-                    if (msg.data.sender !== playerName) {
+                    if (msg.data.sender !== gameState.playerName) {
                         addChatMessage(msg.data.sender, msg.data.text);
                     }
                 });
             } else {
                 document.getElementById('online-status').innerText = 'Modo Local (Offline)';
             }
-        } catch (e) {
-            console.warn("Modo offline.");
-        }
+        } catch (e) { console.warn("Modo offline."); }
 
         // --- UTILITÁRIOS ---
         function sendChat() {
+            playSound('click');
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
             if (text) {
-                addChatMessage(playerName, text);
-                if (channel) channel.publish('chat', { sender: playerName, text: text });
+                addChatMessage(gameState.playerName, text);
+                if (channel) channel.publish('chat', { sender: gameState.playerName, text: text });
                 input.value = '';
             }
         }
@@ -586,7 +767,7 @@
             const box = document.getElementById('chat-messages');
             const msgEl = document.createElement('div');
             msgEl.className = 'chat-msg sys';
-            msgEl.textContent = '⚙️ ' + msg;
+            msgEl.innerHTML = '⚙️ ' + msg;
             box.appendChild(msgEl);
             box.scrollTop = box.scrollHeight;
         }
@@ -597,8 +778,17 @@
             return amount.toLocaleString('pt-BR');
         }
 
-        // Inicialização
+        function switchTab(tabId, btn) {
+            playSound('click');
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            if (btn) btn.classList.add('active');
+        }
+
+        // Inicialização do Jogo
         loadGame();
+        renderAchievements();
         updateUI();
     </script>
 </body>
