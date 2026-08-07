@@ -181,7 +181,7 @@
 
     #btn-jump-mobile:active { transform: scale(0.92); background: #16a34a; }
 
-    /* HUD Inferior - Chat e Botão Desafio */
+    /* HUD Inferior */
     #bottom-hud {
       display: none;
       position: absolute;
@@ -226,7 +226,7 @@
       white-space: nowrap;
     }
 
-    /* Indicador Superior de Dicas */
+    /* Indicador Superior */
     #controls-tip {
       display: none;
       position: absolute;
@@ -266,6 +266,7 @@
       display: flex;
       align-items: center;
       gap: 5px;
+      will-change: transform, left, top;
     }
 
     .btn-x1-tag {
@@ -295,6 +296,7 @@
       pointer-events: none;
       border: 2px solid #38bdf8;
       animation: popIn 0.2s ease-out;
+      will-change: transform, left, top;
     }
 
     .speech-bubble::after {
@@ -441,6 +443,9 @@
     let players = {};
     let platforms = [];
 
+    // OTIMIZAÇÃO: GEOMETRIAS COMPARTILHADAS (REUSO DE MEMÓRIA)
+    let sharedHeadGeo, sharedBodyGeo, sharedArmGeo;
+
     const keys = { w: false, a: false, s: false, d: false, space: false, ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false };
 
     let playerVelY = 0;
@@ -457,6 +462,16 @@
     let joystickTouchId = null;
     let lookTouchId = null;
     let lastLookPos = { x: 0, y: 0 };
+
+    // VETORES ESTÁTICOS PARA EVITAR GARBAGE COLLECTION
+    const tempV = new THREE.Vector3();
+    const tempForward = new THREE.Vector3();
+    const tempRight = new THREE.Vector3();
+    const tempMoveDir = new THREE.Vector3();
+    const upAxis = new THREE.Vector3(0, 1, 0);
+
+    // RASTREAMENTO DE MOVIMENTO REDE
+    let lastSentPos = { x: 0, y: 0, z: 0, rot: 0 };
 
     async function connectAbly() {
       const apiKey = document.getElementById('ably-key').value.trim();
@@ -482,7 +497,6 @@
 
         isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
-        // Inicializa o lobby do Ably ANTES de ligar o loop do Three.js
         initAblyLobby();
         init3DWorld();
         setupControls();
@@ -491,48 +505,73 @@
       ably.connection.on('failed', () => alert('Falha ao conectar no Ably. Confira sua API Key.'));
     }
 
+    // OTIMIZAÇÃO: CRIAÇÃO DE GEOMETRIAS LEVES COMPARTILHADAS
+    function initSharedGeometries() {
+      // Cabeça (Polígonos reduzidos de 32 para 12)
+      sharedHeadGeo = new THREE.SphereGeometry(0.48, 12, 12);
+
+      // Corpo (Lathe reduzido para 12 segmentos)
+      const points = [];
+      for (let i = 0; i <= 15; i++) {
+        const t = i / 15;
+        const radius = Math.sin(t * Math.PI * 0.82) * 0.68;
+        points.push(new THREE.Vector2(radius, t * 1.0));
+      }
+      sharedBodyGeo = new THREE.LatheGeometry(points, 12);
+
+      // Braços (Polígonos reduzidos de 16 para 8)
+      sharedArmGeo = new THREE.SphereGeometry(0.2, 8, 8);
+      sharedArmGeo.scale(1, 2.2, 1);
+    }
+
     // MUNDO 3D
     function init3DWorld() {
       const container = document.getElementById('canvas-container');
 
+      initSharedGeometries();
+
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x70b5ff);
-      scene.fog = new THREE.FogExp2(0x70b5ff, 0.022);
+      scene.fog = new THREE.FogExp2(0x70b5ff, 0.025);
 
-      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);
       camera.rotation.order = 'YXZ';
 
       raycaster = new THREE.Raycaster();
 
-      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+      
+      // OTIMIZAÇÃO: Capping PixelRatio em 1.25 max para evitar rendering em resolução Retina/4K pesada
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
       renderer.setSize(window.innerWidth, window.innerHeight);
+
+      // OTIMIZAÇÃO DE SOMBRAS: BasicShadowMap + Resolução leve (512x512)
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.type = THREE.BasicShadowMap;
       container.appendChild(renderer.domElement);
 
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
       scene.add(ambientLight);
 
-      const hemiLight = new THREE.HemisphereLight(0x70b5ff, 0xffffff, 0.4);
-      scene.add(hemiLight);
-
-      const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
-      dirLight.position.set(25, 45, 25);
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(20, 35, 20);
       dirLight.castShadow = true;
-      dirLight.shadow.mapSize.width = 2048;
-      dirLight.shadow.mapSize.height = 2048;
+      dirLight.shadow.mapSize.width = 512;
+      dirLight.shadow.mapSize.height = 512;
+      dirLight.shadow.camera.near = 0.5;
+      dirLight.shadow.camera.far = 100;
       scene.add(dirLight);
 
       // Chão
-      const floorGeo = new THREE.PlaneGeometry(2000, 2000);
-      const floorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+      const floorGeo = new THREE.PlaneGeometry(1000, 1000);
+      const floorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
       floorMesh = new THREE.Mesh(floorGeo, floorMat);
       floorMesh.rotation.x = -Math.PI / 2;
       floorMesh.receiveShadow = true;
       scene.add(floorMesh);
 
       // Grid
-      gridHelper = new THREE.GridHelper(300, 150, 0x64748b, 0xcbd5e1);
+      gridHelper = new THREE.GridHelper(200, 100, 0x64748b, 0xcbd5e1);
       gridHelper.position.y = 0.01;
       scene.add(gridHelper);
 
@@ -780,43 +819,31 @@
       joystickVector.y = dy / maxRadius;
     }
 
-    // MODELAGEM 3D
+    // MODELAGEM 3D REUTILIZANDO GEOMETRIAS
     function createMalditoDesgracadoBuddyMesh(colorHex) {
       const group = new THREE.Group();
 
       const material = new THREE.MeshPhongMaterial({
         color: colorHex,
-        shininess: 100,
-        specular: 0x444444
+        shininess: 60
       });
 
-      const headGeo = new THREE.SphereGeometry(0.48, 32, 32);
-      const head = new THREE.Mesh(headGeo, material);
+      const head = new THREE.Mesh(sharedHeadGeo, material);
       head.position.y = 1.32;
       head.castShadow = true;
       group.add(head);
 
-      const points = [];
-      for (let i = 0; i <= 30; i++) {
-        const t = i / 30;
-        const radius = Math.sin(t * Math.PI * 0.82) * 0.68;
-        points.push(new THREE.Vector2(radius, t * 1.0));
-      }
-      const bodyGeo = new THREE.LatheGeometry(points, 32);
-      const body = new THREE.Mesh(bodyGeo, material);
+      const body = new THREE.Mesh(sharedBodyGeo, material);
       body.castShadow = true;
       group.add(body);
 
-      const armGeo = new THREE.SphereGeometry(0.2, 16, 16);
-      armGeo.scale(1, 2.2, 1);
-
-      const leftArm = new THREE.Mesh(armGeo, material);
+      const leftArm = new THREE.Mesh(sharedArmGeo, material);
       leftArm.position.set(0.5, 0.6, 0);
       leftArm.rotation.z = -Math.PI / 6;
       leftArm.castShadow = true;
       group.add(leftArm);
 
-      const rightArm = new THREE.Mesh(armGeo, material);
+      const rightArm = new THREE.Mesh(sharedArmGeo, material);
       rightArm.position.set(-0.5, 0.6, 0);
       rightArm.rotation.z = Math.PI / 6;
       rightArm.castShadow = true;
@@ -857,9 +884,8 @@
       };
     }
 
-    // RENDER LOOP & FÍSICA
+    // RENDER LOOP & FÍSICA OTIMIZADA
     let lastBroadCast = 0;
-    const tempV = new THREE.Vector3();
 
     function animate3D() {
       requestAnimationFrame(animate3D);
@@ -883,16 +909,16 @@
 
         if (Math.abs(moveX) > 0.05 || Math.abs(moveZ) > 0.05) {
           const speed = 0.15;
-          const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-          const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+          tempForward.set(0, 0, -1).applyAxisAngle(upAxis, yaw);
+          tempRight.set(1, 0, 0).applyAxisAngle(upAxis, yaw);
 
-          const moveDir = new THREE.Vector3()
-            .addScaledVector(forward, -moveZ)
-            .addScaledVector(right, moveX);
+          tempMoveDir.set(0, 0, 0)
+            .addScaledVector(tempForward, -moveZ)
+            .addScaledVector(tempRight, moveX);
 
-          if (moveDir.length() > 1) moveDir.normalize();
+          if (tempMoveDir.lengthSq() > 1) tempMoveDir.normalize();
 
-          myPlayer.mesh.position.addScaledVector(moveDir, speed);
+          myPlayer.mesh.position.addScaledVector(tempMoveDir, speed);
         }
 
         const px = myPlayer.mesh.position.x;
@@ -918,8 +944,14 @@
           isGrounded = false;
         }
 
+        // OTIMIZAÇÃO REDE: Envia pacotes a 13Hz (a cada 75ms) APENAS SE HOUVER MOVIMENTO REAL
         const now = Date.now();
-        if (lobbyChannel && now - lastBroadCast > 40) {
+        const hasMoved = Math.abs(myPlayer.mesh.position.x - lastSentPos.x) > 0.005 ||
+                         Math.abs(myPlayer.mesh.position.y - lastSentPos.y) > 0.005 ||
+                         Math.abs(myPlayer.mesh.position.z - lastSentPos.z) > 0.005 ||
+                         Math.abs(yaw - lastSentPos.rot) > 0.01;
+
+        if (lobbyChannel && now - lastBroadCast > 75 && hasMoved) {
           lobbyChannel.publish('move3d', {
             id: myClientId,
             x: myPlayer.mesh.position.x,
@@ -927,6 +959,7 @@
             z: myPlayer.mesh.position.z,
             rot: yaw
           });
+          lastSentPos = { x: myPlayer.mesh.position.x, y: myPlayer.mesh.position.y, z: myPlayer.mesh.position.z, rot: yaw };
           lastBroadCast = now;
         }
 
@@ -942,30 +975,37 @@
         floorMesh.position.z = myPlayer.mesh.position.z;
       }
 
+      // ATUALIZAÇÃO 2D EFICIENTE DOS OUTROS JOGADORES
       Object.keys(players).forEach(id => {
         const p = players[id];
 
         if (id !== myClientId) {
-          p.mesh.position.lerp(p.targetPos, 0.18);
+          p.mesh.position.lerp(p.targetPos, 0.2);
 
           tempV.setFromMatrixPosition(p.mesh.matrixWorld);
           tempV.y += 2.1;
           tempV.project(camera);
 
-          const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
-          const y = (tempV.y * -0.5 + 0.5) * window.innerHeight;
           const isVisible = tempV.z < 1;
 
-          if (p.nameTag) {
-            p.nameTag.style.left = `${x}px`;
-            p.nameTag.style.top = `${y}px`;
-            p.nameTag.style.display = isVisible ? 'flex' : 'none';
-          }
+          if (isVisible) {
+            const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (tempV.y * -0.5 + 0.5) * window.innerHeight;
 
-          if (p.speechBubble) {
-            p.speechBubble.style.left = `${x}px`;
-            p.speechBubble.style.top = `${y - 30}px`;
-            p.speechBubble.style.display = isVisible ? 'block' : 'none';
+            if (p.nameTag) {
+              p.nameTag.style.display = 'flex';
+              p.nameTag.style.left = `${x}px`;
+              p.nameTag.style.top = `${y}px`;
+            }
+
+            if (p.speechBubble) {
+              p.speechBubble.style.display = 'block';
+              p.speechBubble.style.left = `${x}px`;
+              p.speechBubble.style.top = `${y - 30}px`;
+            }
+          } else {
+            if (p.nameTag) p.nameTag.style.display = 'none';
+            if (p.speechBubble) p.speechBubble.style.display = 'none';
           }
         }
       });
