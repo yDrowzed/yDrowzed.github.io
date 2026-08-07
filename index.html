@@ -3,20 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Industrial Tycoon - Mercado de Indústrias</title>
+    <title>Industrial Tycoon - Do Zero ao Império Bilionário</title>
     <!-- Ably SDK para Multiplayer em Tempo Real -->
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
 
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
+            --bg-color: #0b0f19;
+            --card-bg: #151c2c;
+            --card-accent: #1e293b;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --accent: #6366f1;
             --accent-green: #22c55e;
+            --accent-gold: #f59e0b;
             --accent-red: #ef4444;
-            --border: #334155;
+            --border: #2e3a52;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
@@ -36,17 +38,42 @@
 
         /* Dashboard Container */
         .dashboard {
-            display: grid; grid-template-columns: 1fr 320px; gap: 20px;
+            display: grid; grid-template-columns: 1fr 340px; gap: 20px;
             padding: 20px; flex: 1; max-width: 1400px; margin: 0 auto; width: 100%;
         }
 
-        @media (max-width: 900px) {
+        @media (max-width: 950px) {
             .dashboard { grid-template-columns: 1fr; }
         }
 
-        /* Seção do Mercado */
         .section-title { font-size: 16px; margin-bottom: 12px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+
+        /* Aba da Minha Empresa */
+        .my-company-box {
+            background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+            padding: 20px; margin-bottom: 25px;
+        }
+        .my-company-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .my-company-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .stat-card { background: var(--card-accent); padding: 10px; border-radius: 8px; border: 1px solid var(--border); }
+        .stat-card span { font-size: 11px; color: var(--text-muted); display: block; }
+        .stat-card strong { font-size: 15px; color: var(--text-main); }
+
+        .actions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
         
+        /* Botões Globais */
+        .btn {
+            background: var(--accent); color: white; border: none; padding: 10px 12px;
+            border-radius: 8px; font-weight: bold; cursor: pointer; transition: all 0.2s;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 12px; gap: 2px;
+        }
+        .btn:hover { background: #4f46e5; transform: translateY(-1px); }
+        .btn:disabled { background: var(--border); cursor: not-allowed; opacity: 0.5; transform: none; }
+        .btn-sub { font-size: 10px; font-weight: normal; opacity: 0.8; }
+        .btn-gold { background: var(--accent-gold); color: #000; }
+        .btn-gold:hover { background: #d97706; }
+
+        /* Grid de Gigantes Reais */
         .industry-grid {
             display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;
         }
@@ -54,45 +81,32 @@
         .industry-card {
             background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
             padding: 16px; display: flex; flex-direction: column; gap: 10px; position: relative;
-            transition: transform 0.2s, border-color 0.2s;
         }
-        .industry-card:hover { transform: translateY(-2px); border-color: var(--accent); }
 
         .ind-header { display: flex; justify-content: space-between; align-items: flex-start; }
-        .ind-name { font-weight: bold; font-size: 16px; }
+        .ind-name { font-weight: bold; font-size: 15px; }
         .ind-sector { font-size: 10px; background: #312e81; color: #a5b4fc; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
         
-        .ind-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; margin: 8px 0; }
-        .ind-details span { color: var(--text-muted); font-size: 11px; display: block; }
+        .ind-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; margin: 6px 0; }
+        .ind-details span { color: var(--text-muted); font-size: 10px; display: block; }
         .ind-details strong { color: var(--text-main); }
 
-        .ind-owner { font-size: 12px; color: var(--accent); font-weight: 500; background: rgba(99, 102, 241, 0.1); padding: 4px 8px; border-radius: 6px; }
+        .ind-owner { font-size: 11px; color: var(--accent-gold); font-weight: 500; background: rgba(245, 158, 11, 0.1); padding: 4px 8px; border-radius: 6px; }
 
-        .btn-buy {
-            background: var(--accent); color: white; border: none; padding: 10px;
-            border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s;
-        }
-        .btn-buy:hover { background: #4f46e5; }
-        .btn-buy:disabled { background: var(--border); cursor: not-allowed; opacity: 0.6; }
-
-        /* Painel Lateral (Chat e Jogadores) */
+        /* Chat e Ranking */
         .sidebar { display: flex; flex-direction: column; gap: 20px; }
+        .panel-box { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; }
 
-        .panel-box {
-            background: var(--card-bg); border: 1px solid var(--border);
-            border-radius: 12px; padding: 15px; display: flex; flex-direction: column;
-        }
-
-        .chat-box { height: 300px; }
+        .chat-box { height: 320px; }
         .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 12px; margin-bottom: 10px; }
         .chat-msg { background: var(--bg-color); padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--accent); }
         .chat-msg.sys { border-left-color: var(--accent-green); color: var(--text-muted); }
         
         .chat-input { display: flex; gap: 8px; }
-        .chat-input input { flex: 1; background: var(--bg-color); border: 1px solid var(--border); color: white; padding: 8px; border-radius: 6px; outline: none; }
+        .chat-input input { flex: 1; background: var(--bg-color); border: 1px solid var(--border); color: white; padding: 8px; border-radius: 6px; outline: none; font-size: 12px; }
         .chat-input button { background: var(--accent); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
 
-        .ranking-list { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+        .ranking-list { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
         .ranking-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
     </style>
 </head>
@@ -100,28 +114,86 @@
 
     <header>
         <div class="player-info">
-            <h1 id="player-display">Investidor</h1>
-            <p>Status: <span id="online-status" style="color: var(--accent-green)">Conectando...</span></p>
+            <h1 id="player-display">Holding Industrial</h1>
+            <p>Servidor: <span id="online-status" style="color: var(--accent-green)">Conectando...</span></p>
         </div>
         <div class="wallet">
-            <div class="balance" id="balance-display">R$ 50.000.000</div>
-            <div class="net-worth">Patrimônio: R$ <span id="networth-display">50.000.000</span></div>
+            <div class="balance" id="balance-display">R$ 500.000</div>
+            <div class="net-worth">Patrimônio Líquido: <span id="networth-display" style="color: var(--accent-gold); font-weight: bold;">R$ 500.000</span></div>
         </div>
     </header>
 
     <div class="dashboard">
-        <!-- Mercado de Indústrias -->
         <main>
+            <!-- SEÇÃO 1: SUA PRÓPRIA EMPRESA -->
+            <div class="my-company-box">
+                <div class="my-company-header">
+                    <div>
+                        <h2 id="my-company-name">Sua Fábrica Inicial</h2>
+                        <span style="font-size: 12px; color: var(--text-muted);" id="my-company-level">Nível 1 - Galpão de Usinagem</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 11px; color: var(--text-muted);">VALOR DE MERCADO DA SUA EMPRESA</span>
+                        <h3 id="my-company-val" style="color: var(--accent-green);">R$ 500.000</h3>
+                    </div>
+                </div>
+
+                <!-- Estatísticas Operacionais da Empresa -->
+                <div class="my-company-stats">
+                    <div class="stat-card">
+                        <span>LUCRO/CICLO (10s)</span>
+                        <strong id="my-income-display" style="color: var(--accent-green);">+ R$ 15.000</strong>
+                    </div>
+                    <div class="stat-card">
+                        <span>CAPACIDADE FABRIL</span>
+                        <strong id="my-capacity-display">100 un/mês</strong>
+                    </div>
+                    <div class="stat-card">
+                        <span>TECNOLOGIA (P&D)</span>
+                        <strong id="my-tech-display">Nível 1</strong>
+                    </div>
+                    <div class="stat-card">
+                        <span>EQUIPE DE ENGENHARIA</span>
+                        <strong id="my-staff-display">5 Funcionários</strong>
+                    </div>
+                </div>
+
+                <!-- Botões de Ações de Crescimento -->
+                <div class="section-title" style="font-size: 13px; margin-top: 15px;">🚀 Investimentos para Expansão</div>
+                <div class="actions-grid">
+                    <button class="btn" id="btn-upgrade-factory" onclick="upgradeFactory()">
+                        <span>🏭 Expandir Planta Fabril</span>
+                        <span class="btn-sub" id="cost-upgrade-factory">Custo: R$ 100.000</span>
+                    </button>
+
+                    <button class="btn" id="btn-upgrade-tech" onclick="upgradeTech()">
+                        <span>🔬 Pesquisa e Desenvolvimento</span>
+                        <span class="btn-sub" id="cost-upgrade-tech">Custo: R$ 50.000</span>
+                    </button>
+
+                    <button class="btn" id="btn-hire-staff" onclick="hireStaff()">
+                        <span>👥 Contratar Engenheiros</span>
+                        <span class="btn-sub" id="cost-hire-staff">Custo: R$ 25.000</span>
+                    </button>
+
+                    <button class="btn btn-gold" id="btn-loan" onclick="takeLoan()">
+                        <span>🏦 Empréstimo Bancário</span>
+                        <span class="btn-sub" id="loan-sub">+ R$ 200.000 (Juros 10%)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- SEÇÃO 2: MERCADO DE AQUISIÇÕES (M&A BILIONÁRIO) -->
             <div class="section-title">
-                <h2>🏭 Mercado de Grandes Indústrias</h2>
-                <span style="font-size: 12px; color: var(--text-muted)">Rendimento automático a cada 10s</span>
+                <h2>🏬 Mercado Global de Fusões e Aquisições (M&A)</h2>
+                <span style="font-size: 11px; color: var(--text-muted)">Valores Reais de Mercado</span>
             </div>
             <div class="industry-grid" id="industry-grid">
-                <!-- Cards de Indústrias gerados via JS -->
+                <!-- Cards das Gigantes Reais gerados via JS -->
             </div>
         </main>
 
-        <!-- Sidebar (Chat + Placar) -->
+        <!-- SIDEBAR (Chat + Ranking) -->
         <aside class="sidebar">
             <div class="panel-box chat-box">
                 <div class="section-title">💬 Chat do Mercado</div>
@@ -133,57 +205,106 @@
             </div>
 
             <div class="panel-box">
-                <div class="section-title">🏆 Maiores Industriais</div>
+                <div class="section-title">🏆 Maiores Holdings</div>
                 <div class="ranking-list" id="ranking-list">
-                    <div class="ranking-item"><span>Você</span><strong id="rank-my-worth">R$ 50M</strong></div>
+                    <div class="ranking-item">
+                        <span id="rank-my-name">Sua Holding</span>
+                        <strong id="rank-my-worth">R$ 500K</strong>
+                    </div>
                 </div>
             </div>
         </aside>
     </div>
 
     <script>
-        // --- 1. CONFIGURAÇÃO DE JOGADOR E ESTADO ---
-        const ABLY_KEY = 'SUA_API_KEY_DO_ABLY'; // Insira sua API Key do Ably para ativar o multiplayer real
-        let playerName = localStorage.getItem('tycoon_name') || prompt("Nome da sua Holding / Investidor:") || "Holding_" + Math.floor(Math.random() * 899 + 100);
-        localStorage.setItem('tycoon_name', playerName);
+        // --- 1. CONFIGURAÇÕES E ESTADO DO JOGO ---
+        const ABLY_KEY = 'SUA_API_KEY_DO_ABLY'; // Cole sua chave Ably para ativar multiplayer real
+        
+        let playerName = localStorage.getItem('holding_name') || prompt("Digite o Nome da sua Holding / Empresa:") || "Industrial_" + Math.floor(Math.random() * 899 + 100);
+        localStorage.setItem('holding_name', playerName);
         document.getElementById('player-display').innerText = playerName;
+        document.getElementById('my-company-name').innerText = "Indústrias " + playerName;
 
         const myId = playerName + '_' + Math.random().toString(36).substring(2, 5);
-        let myCash = 50000000; // Capital inicial: R$ 50 Milhões
 
-        // --- 2. LISTA DE GRANDES INDÚSTRIAS REAIS ---
-        const industries = {
-            'schulz': { id: 'schulz', name: 'Schulz Compressores', sector: 'Metalmecânico', price: 25000000, income: 450000, owner: null },
-            'whirlpool': { id: 'whirlpool', name: 'Whirlpool Corp', sector: 'Eletrodomésticos', price: 65000000, income: 1200000, owner: null },
-            'nidec': { id: 'nidec', name: 'Nidec Global Appliance', sector: 'Motores & Compressores', price: 50000000, income: 900000, owner: null },
-            'weg': { id: 'weg', name: 'WEG Equipamentos', sector: 'Eletreletrônico', price: 120000000, income: 2500000, owner: null },
-            'tupy': { id: 'tupy', name: 'Tupy Fundição', sector: 'Metalurgia', price: 35000000, income: 600000, owner: null },
-            'tigre': { id: 'tigre', name: 'Tigre Tubos e Conexões', sector: 'Construção', price: 40000000, income: 700000, owner: null },
-            'embraco': { id: 'embraco', name: 'Embraco Compressors', sector: 'Refrigeração', price: 45000000, income: 800000, owner: null },
-            'grendene': { id: 'grendene', name: 'Grendene Indústria', sector: 'Calçados', price: 30000000, income: 500000, owner: null }
+        // Caixa e Dados da Sua Empresa
+        let myCash = 500000; // Começa com R$ 500 mil
+        let companyVal = 500000;
+        let factoryLevel = 1;
+        let techLevel = 1;
+        let staffCount = 5;
+        let loanAmount = 0;
+
+        // --- 2. AS GIGANTES REAIS E SEUS VALORES REAIS DE MERCADO ---
+        const realGiants = {
+            'schulz': { id: 'schulz', name: 'Schulz Compressores', sector: 'Metalmecânico', price: 3500000000, income: 45000000, owner: null },      // R$ 3.5 B
+            'tupy': { id: 'tupy', name: 'Tupy Fundição', sector: 'Metalurgia', price: 4200000000, income: 55000000, owner: null },                 // R$ 4.2 B
+            'tigre': { id: 'tigre', name: 'Tigre Tubos', sector: 'Construção', price: 8000000000, income: 95000000, owner: null },                 // R$ 8.0 B
+            'nidec': { id: 'nidec', name: 'Nidec Global Appliance', sector: 'Motores & Compressores', price: 18000000000, income: 210000000, owner: null }, // R$ 18.0 B
+            'whirlpool': { id: 'whirlpool', name: 'Whirlpool Brasil', sector: 'Eletrodomésticos', price: 25000000000, income: 320000000, owner: null },  // R$ 25.0 B
+            'weg': { id: 'weg', name: 'WEG Equipamentos', sector: 'Eletreletrônico', price: 160000000000, income: 1800000000, owner: null }          // R$ 160.0 B
         };
 
-        // --- 3. RENDERIZAÇÃO DO MERCADO ---
-        function renderMarket() {
+        // --- 3. CÁLCULOS E ATUALIZAÇÃO DA TELA ---
+        function calculateIncome() {
+            // Lucro por ciclo = (Planta * 15.000) * Multiplicador de Tech * (Staff / 2)
+            return Math.floor((factoryLevel * 15000) * (1 + (techLevel - 1) * 0.4) * (1 + (staffCount - 5) * 0.05));
+        }
+
+        function calculateCompanyVal() {
+            // Valor da empresa baseia-se nos seus ativos e no seu fluxo de caixa mensal
+            return Math.floor(500000 + (factoryLevel * 250000) + (techLevel * 150000) + (staffCount * 30000) + (calculateIncome() * 20));
+        }
+
+        function updateUI() {
+            companyVal = calculateCompanyVal();
+            const income = calculateIncome();
+
+            // HUD
+            document.getElementById('balance-display').innerText = 'R$ ' + formatMoney(myCash);
+            const totalNetWorth = (myCash + companyVal) - loanAmount;
+            document.getElementById('networth-display').innerText = 'R$ ' + formatMoney(totalNetWorth);
+            document.getElementById('rank-my-worth').innerText = 'R$ ' + formatMoney(totalNetWorth);
+
+            // Dados da Minha Empresa
+            document.getElementById('my-company-val').innerText = 'R$ ' + formatMoney(companyVal);
+            document.getElementById('my-income-display').innerText = '+ R$ ' + formatMoney(income);
+            document.getElementById('my-capacity-display').innerText = (factoryLevel * 100) + ' un/mês';
+            document.getElementById('my-tech-display').innerText = 'Nível ' + techLevel;
+            document.getElementById('my-staff-display').innerText = staffCount + ' Engenheiros';
+
+            // Custos de Expansão
+            const costFactory = Math.floor(100000 * Math.pow(1.6, factoryLevel - 1));
+            const costTech = Math.floor(50000 * Math.pow(1.8, techLevel - 1));
+            const costStaff = Math.floor(25000 * Math.pow(1.3, (staffCount - 5)));
+
+            document.getElementById('cost-upgrade-factory').innerText = 'Custo: R$ ' + formatMoney(costFactory);
+            document.getElementById('cost-upgrade-tech').innerText = 'Custo: R$ ' + formatMoney(costTech);
+            document.getElementById('cost-hire-staff').innerText = 'Custo: R$ ' + formatMoney(costStaff);
+
+            document.getElementById('btn-upgrade-factory').disabled = myCash < costFactory;
+            document.getElementById('btn-upgrade-tech').disabled = myCash < costTech;
+            document.getElementById('btn-hire-staff').disabled = myCash < costStaff;
+
+            // Nível da fábrica
+            if(factoryLevel < 3) document.getElementById('my-company-level').innerText = 'Fase Inicial - Galpão de Usinagem';
+            else if(factoryLevel < 7) document.getElementById('my-company-level').innerText = 'Fase Média - Complexo Industrial Regional';
+            else document.getElementById('my-company-level').innerText = 'Fase Avançada - Conglomerado Multinacional';
+
+            renderGiants();
+        }
+
+        function renderGiants() {
             const grid = document.getElementById('industry-grid');
             grid.innerHTML = '';
 
-            let totalAssetsValue = 0;
-
-            Object.values(industries).forEach(ind => {
-                if (ind.owner === playerName) {
-                    totalAssetsValue += ind.price;
-                }
-
+            Object.values(realGiants).forEach(ind => {
                 const card = document.createElement('div');
                 card.className = 'industry-card';
-                
+
                 const isOwner = ind.owner === playerName;
-                const ownerText = ind.owner ? (isOwner ? 'Sua Indústria' : ind.owner) : 'Disponível no Mercado';
-                const buttonText = ind.owner ? (isOwner ? 'Sua Propriedade' : 'Comprar do Dono') : 'Adquirir Indústria';
-                
-                // Preço de recompra (20% mais caro se já tiver dono)
-                const currentCost = ind.owner && !isOwner ? Math.floor(ind.price * 1.2) : ind.price;
+                const ownerText = ind.owner ? (isOwner ? 'Sua Propriedade!' : ind.owner) : 'Disponível para Aquisição';
+                const canBuy = myCash >= ind.price && !isOwner;
 
                 card.innerHTML = `
                     <div class="ind-header">
@@ -192,103 +313,124 @@
                     </div>
                     <div class="ind-details">
                         <div>
-                            <span>VALOR DE MERCADO</span>
-                            <strong>R$ ${formatMoney(currentCost)}</strong>
+                            <span>VALOR TOTAL (VIDA REAL)</span>
+                            <strong style="color: var(--accent-gold);">R$ ${formatMoney(ind.price)}</strong>
                         </div>
                         <div>
-                            <span>LUCRO / 10s</span>
-                            <strong style="color: var(--accent-green)">+R$ ${formatMoney(ind.income)}</strong>
+                            <span>LUCRO PASSIVO / 10s</span>
+                            <strong style="color: var(--accent-green);">+ R$ ${formatMoney(ind.income)}</strong>
                         </div>
                     </div>
                     <div class="ind-owner">👑 ${ownerText}</div>
-                    <button class="btn-buy" 
-                        ${isOwner || myCash < currentCost ? 'disabled' : ''} 
-                        onclick="buyIndustry('${ind.id}')">
-                        ${buttonText}
+                    <button class="btn" style="margin-top: 5px;"
+                        ${!canBuy ? 'disabled' : ''} 
+                        onclick="buyGiant('${ind.id}')">
+                        ${isOwner ? 'Você é o Dono Majoritário' : 'Comprar Indústria Bilionária'}
                     </button>
                 `;
                 grid.appendChild(card);
             });
-
-            // Atualiza Carteira e Patrimônio
-            document.getElementById('balance-display').innerText = 'R$ ' + formatMoney(myCash);
-            const netWorth = myCash + totalAssetsValue;
-            document.getElementById('networth-display').innerText = formatMoney(netWorth);
-            document.getElementById('rank-my-worth').innerText = 'R$ ' + formatMoney(netWorth);
         }
 
-        // --- 4. AÇÕES DO JOGO ---
-        function buyIndustry(id) {
-            const ind = industries[id];
-            const currentCost = ind.owner ? Math.floor(ind.price * 1.2) : ind.price;
-
-            if (myCash >= currentCost && ind.owner !== playerName) {
-                const previousOwner = ind.owner;
-                myCash -= currentCost;
-                ind.owner = playerName;
-                ind.price = currentCost; // O valor de mercado sobe após a compra
-
-                logSys(`Você adquiriu a **${ind.name}** por R$ ${formatMoney(currentCost)}!`);
-
-                // Notifica no Ably
-                if (channel) {
-                    channel.publish('trade', {
-                        buyer: playerName,
-                        seller: previousOwner,
-                        industryId: id,
-                        price: currentCost,
-                        indName: ind.name
-                    });
-                }
-
-                renderMarket();
+        // --- 4. AÇÕES DA SUA EMPRESA ---
+        function upgradeFactory() {
+            const cost = Math.floor(100000 * Math.pow(1.6, factoryLevel - 1));
+            if (myCash >= cost) {
+                myCash -= cost;
+                factoryLevel++;
+                logSys(`Planta fabril expandida para o Nível ${factoryLevel}!`);
+                updateUI();
             }
         }
 
-        // Ciclo de rendimento passivo (A cada 10 segundos)
+        function upgradeTech() {
+            const cost = Math.floor(50000 * Math.pow(1.8, techLevel - 1));
+            if (myCash >= cost) {
+                myCash -= cost;
+                techLevel++;
+                logSys(`Pesquisa concluída! Tecnologia avançou para Nível ${techLevel}.`);
+                updateUI();
+            }
+        }
+
+        function hireStaff() {
+            const cost = Math.floor(25000 * Math.pow(1.3, (staffCount - 5)));
+            if (myCash >= cost) {
+                myCash -= cost;
+                staffCount += 5;
+                logSys(`Contratados +5 engenheiros. Total: ${staffCount}.`);
+                updateUI();
+            }
+        }
+
+        function takeLoan() {
+            const loanVal = 200000;
+            myCash += loanVal;
+            loanAmount += Math.floor(loanVal * 1.1); // 10% de juros
+            logSys(`Empréstimo de R$ 200.000 aprovado no banco!`);
+            updateUI();
+        }
+
+        function buyGiant(id) {
+            const ind = realGiants[id];
+            if (myCash >= ind.price && !ind.owner) {
+                myCash -= ind.price;
+                ind.owner = playerName;
+                logSys(`🎉 INCRÍVEL! Sua Holding adquiriu a **${ind.name}** por R$ ${formatMoney(ind.price)}!`);
+
+                if (channel) {
+                    channel.publish('giant-buy', { buyer: playerName, indName: ind.name, price: ind.price, id: id });
+                }
+                updateUI();
+            }
+        }
+
+        // --- 5. CICLO DE LUCRO AUTOMÁTICO (10 Segundos) ---
         setInterval(() => {
-            let dividendos = 0;
-            Object.values(industries).forEach(ind => {
+            // Lucro da própria fábrica
+            let totalDividendos = calculateIncome();
+
+            // Lucros das gigantes bilionárias adquiridas
+            Object.values(realGiants).forEach(ind => {
                 if (ind.owner === playerName) {
-                    dividendos += ind.income;
+                    totalDividendos += ind.income;
                 }
             });
 
-            if (dividendos > 0) {
-                myCash += dividendos;
-                logSys(`Você recebeu **R$ ${formatMoney(dividendos)}** em dividendos industriais.`);
-                renderMarket();
+            // Pagamento automático de dívidas se houver empréstimo
+            if (loanAmount > 0) {
+                const pay = Math.min(10000, loanAmount);
+                loanAmount -= pay;
+                totalDividendos -= pay;
             }
+
+            myCash += totalDividendos;
+            updateUI();
         }, 10000);
 
-        // --- 5. MULTIPLAYER COM ABLY ---
+        // --- 6. MULTIPLAYER COM ABLY ---
         let ably, channel;
-
         try {
             if (ABLY_KEY && ABLY_KEY !== 'SUA_API_KEY_DO_ABLY') {
                 ably = new Ably.Realtime({ key: ABLY_KEY, clientId: myId });
-                channel = ably.channels.get('industrial-market-v1');
+                channel = ably.channels.get('industrial-real-v1');
 
                 ably.connection.on('connected', () => {
                     document.getElementById('online-status').innerText = 'Online';
-                    logSys('Conectado ao Mercado Financeiro Global.');
+                    logSys('Conectado ao Mercado Global.');
                 });
 
-                // Recebe Compras de Outros Jogadores
-                channel.subscribe('trade', (msg) => {
+                channel.subscribe('giant-buy', (msg) => {
                     const data = msg.data;
-                    if (industries[data.industryId]) {
-                        industries[data.industryId].owner = data.buyer;
-                        industries[data.industryId].price = data.price;
-                        
+                    if (realGiants[data.id]) {
+                        realGiants[data.id].owner = data.buyer;
                         if (data.buyer !== playerName) {
-                            logSys(`**${data.buyer}** comprou a **${data.indName}** por R$ ${formatMoney(data.price)}.`);
+                            logSys(`⚠️ O concorrente **${data.buyer}** acaba de comprar a **${data.indName}**!`);
                         }
-                        renderMarket();
+                        updateUI();
                     }
                 });
 
-                // Chat
                 channel.subscribe('chat', (msg) => {
                     if (msg.data.sender !== playerName) {
                         addChatMessage(msg.data.sender, msg.data.text);
@@ -298,18 +440,16 @@
                 document.getElementById('online-status').innerText = 'Modo Local (Offline)';
             }
         } catch (e) {
-            console.warn("Executando em modo singleplayer/local.");
+            console.warn("Modo offline.");
         }
 
-        // --- 6. CHAT E UTILITÁRIOS ---
+        // --- UTILITÁRIOS ---
         function sendChat() {
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
             if (text) {
                 addChatMessage(playerName, text);
-                if (channel) {
-                    channel.publish('chat', { sender: playerName, text: text });
-                }
+                if (channel) channel.publish('chat', { sender: playerName, text: text });
                 input.value = '';
             }
         }
@@ -327,11 +467,12 @@
         }
 
         function formatMoney(amount) {
+            if (amount >= 1000000000) return (amount / 1000000000).toFixed(1) + ' Bili';
+            if (amount >= 1000000) return (amount / 1000000).toFixed(1) + ' Mili';
             return amount.toLocaleString('pt-BR');
         }
 
-        // Inicializa o jogo na tela
-        renderMarket();
+        updateUI();
     </script>
 </body>
 </html>
