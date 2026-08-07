@@ -1,9 +1,10 @@
+O código foi atualizado com o nome oficial "Maldito Desgraçado World" no título da página, na tela de login e no bloco final do parkour:
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Maldito Desgraçado 3D 1ª Pessoa - Parkour & X1</title>
+  <title>Maldito Desgraçado World</title>
   <!-- SDKs do Ably e Three.js via CDN -->
   <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -167,7 +168,6 @@
       z-index: 50;
       pointer-events: auto;
       box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-      display: flex;
       align-items: center;
       justify-content: center;
       touch-action: manipulation;
@@ -355,7 +355,7 @@
 
   <!-- Tela de Login -->
   <div id="login-screen">
-    <h1>Maldito Desgraçado 3D</h1>
+    <h1>Maldito Desgraçado World</h1>
     <p>Insira sua API Key do Ably e escolha um apelido para entrar no mundo.</p>
     <input type="password" id="ably-key" placeholder="API Key do Ably">
     <input type="text" id="username" placeholder="Seu Apelido">
@@ -366,7 +366,7 @@
   <div id="crosshair"></div>
 
   <!-- Controles Tip -->
-  <div id="controls-tip">🎮 Carregando controles...</div>
+  <div id="controls-tip"></div>
 
   <!-- Joystick & Botão de Pulo (Mobile) -->
   <div id="joystick-zone">
@@ -564,7 +564,7 @@
       addParkourBlock(-7, 13.0, -9, 5, 1.5, 5, 0xffd700);
     }
 
-    // --- RAYCASTING: CLICAR NO JOGADOR EM 3D PARA DESAFIAR ---
+    // --- RAYCASTING ---
     function raycastTargetPlayer(screenX, screenY) {
       const mouse = new THREE.Vector2(
         (screenX / window.innerWidth) * 2 - 1,
@@ -594,7 +594,6 @@
     }
 
     function challengeCrosshairTarget() {
-      // Raycast a partir do centro da tela (Mira/Crosshair)
       const targetId = raycastTargetPlayer(window.innerWidth / 2, window.innerHeight / 2);
       if (targetId) {
         challengeUser(targetId);
@@ -620,6 +619,8 @@
         tip.innerHTML = '📱 Clique no jogador 3D ou mire nele para chamar pro X1!';
         setupTouchControls();
       } else {
+        document.getElementById('joystick-zone').style.display = 'none';
+        document.getElementById('btn-jump-mobile').style.display = 'none';
         tip.innerHTML = '🖱️ Clique em um jogador 3D para desafiá-lo | <b>WASD</b> | <b>Espaço</b>';
         setupMouseControls();
         setupKeyboardControls();
@@ -632,7 +633,6 @@
       container.addEventListener('click', (e) => {
         if (document.activeElement === document.getElementById('chat-input')) return;
 
-        // Tenta desafiar se clicou em um boneco 3D
         const hitId = raycastTargetPlayer(e.clientX, e.clientY);
         if (hitId) {
           challengeUser(hitId);
@@ -694,7 +694,6 @@
 
           if (touch.target.id === 'btn-jump-mobile' || touch.target.closest('#btn-jump-mobile')) continue;
 
-          // Se tocar na tela em cima de um boneco 3D -> Desafia
           const hitId = raycastTargetPlayer(touch.clientX, touch.clientY);
           if (hitId) {
             challengeUser(hitId);
@@ -1141,3 +1140,4 @@
   </script>
 </body>
 </html>
+
