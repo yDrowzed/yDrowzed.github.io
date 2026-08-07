@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Industrial Tycoon - Do Zero ao Império Bilionário</title>
+    <!-- Meta Tags para Compartilhamento (SEO/OpenGraph) -->
+    <meta name="description" content="Simulador de gestão industrial e M&A. Construa seu império bilionário!">
+    <meta property="og:title" content="Industrial Tycoon">
+    <meta property="og:description" content="Gerencie fábricas, invista em P&D e adquira gigantes industriais no mercado global.">
+    <meta property="og:type" content="website">
+
     <!-- Ably SDK para Multiplayer em Tempo Real -->
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
 
@@ -22,7 +28,7 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+        body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
 
         /* Header / HUD */
         header {
@@ -32,7 +38,7 @@
         }
         .player-info h1 { font-size: 18px; color: var(--text-main); }
         .player-info p { font-size: 12px; color: var(--text-muted); }
-        .wallet { text-align: right; }
+        .wallet { text-align: right; position: relative; }
         .wallet .balance { font-size: 22px; font-weight: bold; color: var(--accent-green); }
         .wallet .net-worth { font-size: 12px; color: var(--text-muted); }
 
@@ -51,8 +57,19 @@
         /* Aba da Minha Empresa */
         .my-company-box {
             background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
-            padding: 20px; margin-bottom: 25px;
+            padding: 20px; margin-bottom: 25px; position: relative; overflow: hidden;
         }
+
+        /* Barra de Progresso do Ciclo */
+        .cycle-progress-container {
+            width: 100%; height: 6px; background: var(--card-accent);
+            border-radius: 3px; overflow: hidden; margin-bottom: 15px;
+        }
+        .cycle-progress-bar {
+            width: 0%; height: 100%; background: var(--accent-green);
+            transition: width 0.1s linear;
+        }
+
         .my-company-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
         .my-company-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; margin-bottom: 15px; }
         .stat-card { background: var(--card-accent); padding: 10px; border-radius: 8px; border: 1px solid var(--border); }
@@ -67,11 +84,13 @@
             border-radius: 8px; font-weight: bold; cursor: pointer; transition: all 0.2s;
             display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 12px; gap: 2px;
         }
-        .btn:hover { background: #4f46e5; transform: translateY(-1px); }
+        .btn:hover:not(:disabled) { background: #4f46e5; transform: translateY(-1px); }
         .btn:disabled { background: var(--border); cursor: not-allowed; opacity: 0.5; transform: none; }
         .btn-sub { font-size: 10px; font-weight: normal; opacity: 0.8; }
         .btn-gold { background: var(--accent-gold); color: #000; }
-        .btn-gold:hover { background: #d97706; }
+        .btn-gold:hover:not(:disabled) { background: #d97706; }
+        .btn-reset { background: transparent; color: var(--text-muted); border: 1px solid var(--border); font-size: 10px; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+        .btn-reset:hover { color: var(--accent-red); border-color: var(--accent-red); }
 
         /* Grid de Gigantes Reais */
         .industry-grid {
@@ -108,6 +127,18 @@
 
         .ranking-list { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
         .ranking-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+
+        /* Animação Flutuante do Ganho de Dinheiro */
+        .floating-money {
+            position: fixed; color: var(--accent-green); font-weight: bold;
+            font-size: 14px; pointer-events: none; z-index: 1000;
+            animation: floatUp 1.2s ease-out forwards;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-35px); }
+        }
     </style>
 </head>
 <body>
@@ -127,6 +158,10 @@
         <main>
             <!-- SEÇÃO 1: SUA PRÓPRIA EMPRESA -->
             <div class="my-company-box">
+                <div class="cycle-progress-container" title="Ciclo de Faturamento">
+                    <div class="cycle-progress-bar" id="cycle-progress"></div>
+                </div>
+
                 <div class="my-company-header">
                     <div>
                         <h2 id="my-company-name">Sua Fábrica Inicial</h2>
@@ -159,7 +194,10 @@
                 </div>
 
                 <!-- Botões de Ações de Crescimento -->
-                <div class="section-title" style="font-size: 13px; margin-top: 15px;">🚀 Investimentos para Expansão</div>
+                <div class="section-title" style="font-size: 13px; margin-top: 15px;">
+                    <span>🚀 Investimentos para Expansão</span>
+                    <button class="btn-reset" onclick="resetProgress()" title="Reiniciar Save">Resetar Progresso</button>
+                </div>
                 <div class="actions-grid">
                     <button class="btn" id="btn-upgrade-factory" onclick="upgradeFactory()">
                         <span>🏭 Expandir Planta Fabril</span>
@@ -220,15 +258,19 @@
         // --- 1. CONFIGURAÇÕES E ESTADO DO JOGO ---
         const ABLY_KEY = 'SUA_API_KEY_DO_ABLY'; // Cole sua chave Ably para ativar multiplayer real
         
-        let playerName = localStorage.getItem('holding_name') || prompt("Digite o Nome da sua Holding / Empresa:") || "Industrial_" + Math.floor(Math.random() * 899 + 100);
-        localStorage.setItem('holding_name', playerName);
+        let playerName = localStorage.getItem('holding_name');
+        if (!playerName) {
+            playerName = prompt("Digite o Nome da sua Holding / Empresa:") || "Industrial_" + Math.floor(Math.random() * 899 + 100);
+            localStorage.setItem('holding_name', playerName);
+        }
+        
         document.getElementById('player-display').innerText = playerName;
         document.getElementById('my-company-name').innerText = "Indústrias " + playerName;
 
         const myId = playerName + '_' + Math.random().toString(36).substring(2, 5);
 
         // Caixa e Dados da Sua Empresa
-        let myCash = 500000; // Começa com R$ 500 mil
+        let myCash = 500000;
         let companyVal = 500000;
         let factoryLevel = 1;
         let techLevel = 1;
@@ -237,22 +279,58 @@
 
         // --- 2. AS GIGANTES REAIS E SEUS VALORES REAIS DE MERCADO ---
         const realGiants = {
-            'schulz': { id: 'schulz', name: 'Schulz Compressores', sector: 'Metalmecânico', price: 3500000000, income: 45000000, owner: null },      // R$ 3.5 B
-            'tupy': { id: 'tupy', name: 'Tupy Fundição', sector: 'Metalurgia', price: 4200000000, income: 55000000, owner: null },                 // R$ 4.2 B
-            'tigre': { id: 'tigre', name: 'Tigre Tubos', sector: 'Construção', price: 8000000000, income: 95000000, owner: null },                 // R$ 8.0 B
-            'nidec': { id: 'nidec', name: 'Nidec Global Appliance', sector: 'Motores & Compressores', price: 18000000000, income: 210000000, owner: null }, // R$ 18.0 B
-            'whirlpool': { id: 'whirlpool', name: 'Whirlpool Brasil', sector: 'Eletrodomésticos', price: 25000000000, income: 320000000, owner: null },  // R$ 25.0 B
-            'weg': { id: 'weg', name: 'WEG Equipamentos', sector: 'Eletreletrônico', price: 160000000000, income: 1800000000, owner: null }          // R$ 160.0 B
+            'schulz': { id: 'schulz', name: 'Schulz Compressores', sector: 'Metalmecânico', price: 3500000000, income: 45000000, owner: null },
+            'tupy': { id: 'tupy', name: 'Tupy Fundição', sector: 'Metalurgia', price: 4200000000, income: 55000000, owner: null },
+            'tigre': { id: 'tigre', name: 'Tigre Tubos', sector: 'Construção', price: 8000000000, income: 95000000, owner: null },
+            'nidec': { id: 'nidec', name: 'Nidec Global Appliance', sector: 'Motores & Compressores', price: 18000000000, income: 210000000, owner: null },
+            'whirlpool': { id: 'whirlpool', name: 'Whirlpool Brasil', sector: 'Eletrodomésticos', price: 25000000000, income: 320000000, owner: null },
+            'weg': { id: 'weg', name: 'WEG Equipamentos', sector: 'Eletreletrônico', price: 160000000000, income: 1800000000, owner: null }
         };
 
-        // --- 3. CÁLCULOS E ATUALIZAÇÃO DA TELA ---
+        // --- 3. SISTEMA DE SALVAMENTO AUTOMÁTICO ---
+        function saveGame() {
+            const ownedIds = Object.values(realGiants)
+                .filter(ind => ind.owner === playerName)
+                .map(ind => ind.id);
+
+            const data = {
+                myCash, factoryLevel, techLevel, staffCount, loanAmount, ownedIds
+            };
+            localStorage.setItem('holding_save_v1', JSON.stringify(data));
+        }
+
+        function loadGame() {
+            const saved = localStorage.getItem('holding_save_v1');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    myCash = data.myCash ?? 500000;
+                    factoryLevel = data.factoryLevel ?? 1;
+                    techLevel = data.techLevel ?? 1;
+                    staffCount = data.staffCount ?? 5;
+                    loanAmount = data.loanAmount ?? 0;
+                    if (Array.isArray(data.ownedIds)) {
+                        data.ownedIds.forEach(id => {
+                            if (realGiants[id]) realGiants[id].owner = playerName;
+                        });
+                    }
+                } catch(e) { console.error("Erro ao carregar dados salvos:", e); }
+            }
+        }
+
+        function resetProgress() {
+            if (confirm("Deseja realmente reiniciar todo o seu progresso no jogo?")) {
+                localStorage.removeItem('holding_save_v1');
+                location.reload();
+            }
+        }
+
+        // --- 4. CÁLCULOS E ATUALIZAÇÃO DA TELA ---
         function calculateIncome() {
-            // Lucro por ciclo = (Planta * 15.000) * Multiplicador de Tech * (Staff / 2)
             return Math.floor((factoryLevel * 15000) * (1 + (techLevel - 1) * 0.4) * (1 + (staffCount - 5) * 0.05));
         }
 
         function calculateCompanyVal() {
-            // Valor da empresa baseia-se nos seus ativos e no seu fluxo de caixa mensal
             return Math.floor(500000 + (factoryLevel * 250000) + (techLevel * 150000) + (staffCount * 30000) + (calculateIncome() * 20));
         }
 
@@ -260,20 +338,17 @@
             companyVal = calculateCompanyVal();
             const income = calculateIncome();
 
-            // HUD
             document.getElementById('balance-display').innerText = 'R$ ' + formatMoney(myCash);
             const totalNetWorth = (myCash + companyVal) - loanAmount;
             document.getElementById('networth-display').innerText = 'R$ ' + formatMoney(totalNetWorth);
             document.getElementById('rank-my-worth').innerText = 'R$ ' + formatMoney(totalNetWorth);
 
-            // Dados da Minha Empresa
             document.getElementById('my-company-val').innerText = 'R$ ' + formatMoney(companyVal);
             document.getElementById('my-income-display').innerText = '+ R$ ' + formatMoney(income);
             document.getElementById('my-capacity-display').innerText = (factoryLevel * 100) + ' un/mês';
             document.getElementById('my-tech-display').innerText = 'Nível ' + techLevel;
             document.getElementById('my-staff-display').innerText = staffCount + ' Engenheiros';
 
-            // Custos de Expansão
             const costFactory = Math.floor(100000 * Math.pow(1.6, factoryLevel - 1));
             const costTech = Math.floor(50000 * Math.pow(1.8, techLevel - 1));
             const costStaff = Math.floor(25000 * Math.pow(1.3, (staffCount - 5)));
@@ -286,7 +361,6 @@
             document.getElementById('btn-upgrade-tech').disabled = myCash < costTech;
             document.getElementById('btn-hire-staff').disabled = myCash < costStaff;
 
-            // Nível da fábrica
             if(factoryLevel < 3) document.getElementById('my-company-level').innerText = 'Fase Inicial - Galpão de Usinagem';
             else if(factoryLevel < 7) document.getElementById('my-company-level').innerText = 'Fase Média - Complexo Industrial Regional';
             else document.getElementById('my-company-level').innerText = 'Fase Avançada - Conglomerado Multinacional';
@@ -332,13 +406,14 @@
             });
         }
 
-        // --- 4. AÇÕES DA SUA EMPRESA ---
+        // --- 5. AÇÕES DA SUA EMPRESA ---
         function upgradeFactory() {
             const cost = Math.floor(100000 * Math.pow(1.6, factoryLevel - 1));
             if (myCash >= cost) {
                 myCash -= cost;
                 factoryLevel++;
                 logSys(`Planta fabril expandida para o Nível ${factoryLevel}!`);
+                saveGame();
                 updateUI();
             }
         }
@@ -349,6 +424,7 @@
                 myCash -= cost;
                 techLevel++;
                 logSys(`Pesquisa concluída! Tecnologia avançou para Nível ${techLevel}.`);
+                saveGame();
                 updateUI();
             }
         }
@@ -359,6 +435,7 @@
                 myCash -= cost;
                 staffCount += 5;
                 logSys(`Contratados +5 engenheiros. Total: ${staffCount}.`);
+                saveGame();
                 updateUI();
             }
         }
@@ -366,8 +443,9 @@
         function takeLoan() {
             const loanVal = 200000;
             myCash += loanVal;
-            loanAmount += Math.floor(loanVal * 1.1); // 10% de juros
+            loanAmount += Math.floor(loanVal * 1.1);
             logSys(`Empréstimo de R$ 200.000 aprovado no banco!`);
+            saveGame();
             updateUI();
         }
 
@@ -381,23 +459,36 @@
                 if (channel) {
                     channel.publish('giant-buy', { buyer: playerName, indName: ind.name, price: ind.price, id: id });
                 }
+                saveGame();
                 updateUI();
             }
         }
 
-        // --- 5. CICLO DE LUCRO AUTOMÁTICO (10 Segundos) ---
+        // --- 6. CICLO DE TEMPO (10 Segundos com Barra de Progresso) ---
+        const CYCLE_DURATION = 10000;
+        let cycleTimer = 0;
+        const tickRate = 100;
+
         setInterval(() => {
-            // Lucro da própria fábrica
+            cycleTimer += tickRate;
+            const percentage = (cycleTimer / CYCLE_DURATION) * 100;
+            document.getElementById('cycle-progress').style.width = percentage + '%';
+
+            if (cycleTimer >= CYCLE_DURATION) {
+                cycleTimer = 0;
+                processIncomeCycle();
+            }
+        }, tickRate);
+
+        function processIncomeCycle() {
             let totalDividendos = calculateIncome();
 
-            // Lucros das gigantes bilionárias adquiridas
             Object.values(realGiants).forEach(ind => {
                 if (ind.owner === playerName) {
                     totalDividendos += ind.income;
                 }
             });
 
-            // Pagamento automático de dívidas se houver empréstimo
             if (loanAmount > 0) {
                 const pay = Math.min(10000, loanAmount);
                 loanAmount -= pay;
@@ -405,10 +496,30 @@
             }
 
             myCash += totalDividendos;
-            updateUI();
-        }, 10000);
+            
+            // Efeito visual flutuante do lucro
+            if (totalDividendos > 0) {
+                const balanceEl = document.getElementById('balance-display');
+                showFloatingText(`+ R$ ${formatMoney(totalDividendos)}`, balanceEl);
+            }
 
-        // --- 6. MULTIPLAYER COM ABLY ---
+            saveGame();
+            updateUI();
+        }
+
+        function showFloatingText(text, targetEl) {
+            if (!targetEl) return;
+            const rect = targetEl.getBoundingClientRect();
+            const el = document.createElement('div');
+            el.className = 'floating-money';
+            el.innerText = text;
+            el.style.left = `${rect.left + rect.width / 2 - 20}px`;
+            el.style.top = `${rect.top}px`;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 1200);
+        }
+
+        // --- 7. MULTIPLAYER COM ABLY ---
         let ably, channel;
         try {
             if (ABLY_KEY && ABLY_KEY !== 'SUA_API_KEY_DO_ABLY') {
@@ -456,13 +567,27 @@
 
         function addChatMessage(sender, text) {
             const box = document.getElementById('chat-messages');
-            box.innerHTML += `<div class="chat-msg"><b>${sender}:</b> ${text}</div>`;
+            const msgEl = document.createElement('div');
+            msgEl.className = 'chat-msg';
+            
+            const senderB = document.createElement('b');
+            senderB.textContent = sender + ': ';
+            msgEl.appendChild(senderB);
+            
+            const textSpan = document.createElement('span');
+            textSpan.textContent = text;
+            msgEl.appendChild(textSpan);
+
+            box.appendChild(msgEl);
             box.scrollTop = box.scrollHeight;
         }
 
         function logSys(msg) {
             const box = document.getElementById('chat-messages');
-            box.innerHTML += `<div class="chat-msg sys">⚙️ ${msg}</div>`;
+            const msgEl = document.createElement('div');
+            msgEl.className = 'chat-msg sys';
+            msgEl.textContent = '⚙️ ' + msg;
+            box.appendChild(msgEl);
             box.scrollTop = box.scrollHeight;
         }
 
@@ -472,6 +597,8 @@
             return amount.toLocaleString('pt-BR');
         }
 
+        // Inicialização
+        loadGame();
         updateUI();
     </script>
 </body>
