@@ -3,149 +3,218 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>INDUSTRIAL ECOSYSTEM // B2B, CARTÉIS, SABOTAGEM & GOVERNANÇA</title>
+    <title>Holding Operations Platform - ERP Industrial v5.0</title>
     
     <!-- Ably Realtime SDK -->
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
 
     <style>
         :root {
-            --bg-main: #080b11;
-            --panel-bg: #0f172a;
-            --panel-border: #1e293b;
+            --bg-main: #0b1120;
+            --panel-bg: #111a2e;
+            --panel-card: #16223b;
+            --panel-border: #213254;
+            --panel-border-hover: #314876;
+            
+            --accent-blue: #2563eb;
+            --accent-blue-hover: #1d4ed8;
             --accent-green: #10b981;
-            --accent-amber: #f59e0b;
+            --accent-amber: #d97706;
             --accent-red: #ef4444;
-            --accent-cyan: #06b6d4;
-            --accent-purple: #8b5cf6;
-            --accent-pink: #ec4899;
-            --text-main: #f8fafc;
+            --accent-purple: #7c3aed;
+            
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
             --text-muted: #64748b;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'JetBrains Mono', 'Segoe UI Mono', monospace; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
 
         body {
             background-color: var(--bg-main);
-            color: var(--text-main);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            font-size: 12px;
+            font-size: 13px;
+            letter-spacing: -0.01em;
             user-select: none;
         }
 
-        /* Top HUD */
+        /* Executive Header Header / HUD */
         header {
             background: var(--panel-bg);
             border-bottom: 1px solid var(--panel-border);
-            padding: 8px 16px;
+            padding: 12px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 16px;
         }
 
-        .hud-title { font-weight: bold; color: var(--accent-cyan); font-size: 13px; display: flex; align-items: center; gap: 8px; }
-        .hud-stats { display: flex; gap: 15px; font-weight: 600; flex-wrap: wrap; }
-        .stat-val { color: var(--accent-green); font-weight: bold; }
-        .stat-amber { color: var(--accent-amber); font-weight: bold; }
-        .badge { background: #1e293b; padding: 2px 6px; border-radius: 4px; font-size: 10px; border: 1px solid var(--panel-border); }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
 
-        /* Navigation Bar */
+        .brand-logo {
+            background: var(--accent-blue);
+            color: white;
+            font-weight: 800;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            letter-spacing: 0.05em;
+        }
+
+        .brand-title h1 {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .brand-title p {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* KPI Bar */
+        .kpi-container {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .kpi-card {
+            background: var(--panel-card);
+            border: 1px solid var(--panel-border);
+            padding: 8px 14px;
+            border-radius: 6px;
+            min-width: 120px;
+        }
+
+        .kpi-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 2px;
+        }
+
+        .kpi-value {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .val-green { color: var(--accent-green); }
+        .val-amber { color: var(--accent-amber); }
+        .val-blue { color: #38bdf8; }
+        .val-purple { color: #c084fc; }
+
+        /* Corporate Tabs Navigation */
         nav {
             display: flex;
-            background: #090e17;
+            background: var(--panel-bg);
             border-bottom: 1px solid var(--panel-border);
+            padding: 0 16px;
             overflow-x: auto;
         }
 
         .nav-tab {
             background: transparent;
             border: none;
-            border-right: 1px solid var(--panel-border);
-            color: var(--text-muted);
-            padding: 10px 16px;
+            color: var(--text-secondary);
+            padding: 12px 18px;
             cursor: pointer;
-            font-weight: bold;
-            font-size: 11px;
+            font-weight: 600;
+            font-size: 12px;
             white-space: nowrap;
-            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .nav-tab:hover, .nav-tab.active {
-            background: var(--panel-bg);
-            color: var(--accent-cyan);
-            border-bottom: 2px solid var(--accent-cyan);
+        .nav-tab:hover {
+            color: var(--text-primary);
         }
 
-        /* Container Principal */
+        .nav-tab.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        /* Main Workspace Layout */
         .main-container {
             display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 12px;
-            padding: 12px;
+            grid-template-columns: 1fr 320px;
+            gap: 16px;
+            padding: 20px 24px;
             flex: 1;
             max-width: 1600px;
             margin: 0 auto;
             width: 100%;
         }
 
-        @media (max-width: 950px) {
-            .main-container { grid-template-columns: 1fr; }
+        @media (max-width: 1024px) {
+            .main-container { grid-template-columns: 1fr; padding: 16px; }
         }
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* Cards e Painéis */
+        /* Corporate Card Component */
         .card {
             background: var(--panel-bg);
             border: 1px solid var(--panel-border);
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 12px;
+            border-radius: 8px;
+            padding: 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
         }
 
         .card-header {
-            font-size: 11px;
-            font-weight: bold;
-            color: var(--accent-cyan);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--text-secondary);
             border-bottom: 1px solid var(--panel-border);
-            padding-bottom: 6px;
-            margin-bottom: 10px;
+            padding-bottom: 10px;
+            margin-bottom: 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        /* Minigame de Precisão */
-        .forge-minigame {
-            background: #05080e;
+        /* Calibration Gauge / Minigame */
+        .gauge-section {
+            background: var(--panel-card);
             border: 1px solid var(--panel-border);
-            border-radius: 6px;
-            padding: 15px;
-            text-align: center;
-            margin-bottom: 12px;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
         }
 
         .gauge-container {
             position: relative;
             width: 100%;
             height: 32px;
-            background: #1e293b;
-            border-radius: 4px;
-            margin: 15px 0;
+            background: var(--bg-main);
+            border-radius: 6px;
+            margin: 16px 0;
             overflow: hidden;
-            border: 1px solid #334155;
+            border: 1px solid var(--panel-border);
         }
 
         .target-zone {
             position: absolute;
             top: 0;
             height: 100%;
-            background: rgba(16, 185, 129, 0.4);
+            background: rgba(16, 185, 129, 0.25);
             border-left: 2px solid var(--accent-green);
             border-right: 2px solid var(--accent-green);
         }
@@ -153,71 +222,124 @@
         .gauge-needle {
             position: absolute;
             top: 0;
-            width: 5px;
+            width: 4px;
             height: 100%;
             background: #ffffff;
-            box-shadow: 0 0 8px #ffffff;
+            box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
             transform: translateX(-50%);
         }
 
-        .btn-forge {
-            background: linear-gradient(180deg, #06b6d4 0%, #0891b2 100%);
-            color: black;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        /* Botões */
+        /* Corporate Buttons */
         .btn {
-            background: #1e293b;
-            color: var(--text-main);
-            border: 1px solid #334155;
-            padding: 6px 10px;
-            border-radius: 4px;
+            background: var(--accent-blue);
+            color: white;
+            border: 1px solid transparent;
+            padding: 8px 14px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 10px;
-            font-weight: bold;
-            transition: all 0.2s;
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
 
-        .btn:hover:not(:disabled) { background: var(--accent-cyan); color: black; border-color: var(--accent-cyan); }
+        .btn:hover:not(:disabled) {
+            background: var(--accent-blue-hover);
+        }
+
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-amber { border-color: var(--accent-amber); color: var(--accent-amber); }
-        .btn-amber:hover:not(:disabled) { background: var(--accent-amber); color: black; }
-        .btn-red { border-color: var(--accent-red); color: var(--accent-red); }
-        .btn-red:hover:not(:disabled) { background: var(--accent-red); color: white; }
-        .btn-purple { border-color: var(--accent-purple); color: var(--accent-purple); }
-        .btn-purple:hover:not(:disabled) { background: var(--accent-purple); color: white; }
 
-        /* Market Share Progress Bar */
-        .market-bar-bg { background: #1e293b; height: 12px; border-radius: 6px; overflow: hidden; display: flex; margin-top: 4px; }
-        .market-bar-fill { height: 100%; transition: width 0.3s; }
-
-        /* Tabelas */
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 6px 8px; border-bottom: 1px solid var(--panel-border); text-align: left; font-size: 10px; }
-        th { color: var(--text-muted); }
-
-        /* Inputs */
-        input[type="number"], input[type="text"], select {
-            background: #05080e;
-            border: 1px solid var(--panel-border);
-            color: var(--text-main);
-            padding: 5px 8px;
-            border-radius: 4px;
-            outline: none;
-            font-size: 10px;
+        .btn-outline {
+            background: transparent;
+            border-color: var(--panel-border);
+            color: var(--text-primary);
+        }
+        .btn-outline:hover:not(:disabled) {
+            background: var(--panel-card);
+            border-color: var(--panel-border-hover);
         }
 
-        /* Modals */
+        .btn-amber { background: var(--accent-amber); color: white; }
+        .btn-amber:hover:not(:disabled) { background: #b45309; }
+
+        .btn-red { background: var(--accent-red); color: white; }
+        .btn-red:hover:not(:disabled) { background: #dc2626; }
+
+        .btn-purple { background: var(--accent-purple); color: white; }
+        .btn-purple:hover:not(:disabled) { background: #6d28d9; }
+
+        .btn-lg {
+            padding: 12px 24px;
+            font-size: 13px;
+        }
+
+        /* Clean Enterprise Tables */
+        table { width: 100%; border-collapse: collapse; }
+        
+        th {
+            background: var(--panel-card);
+            color: var(--text-secondary);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--panel-border);
+            text-align: left;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--panel-border);
+            font-size: 11px;
+            color: var(--text-primary);
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Form Inputs */
+        input[type="number"], input[type="text"], select {
+            background: var(--bg-main);
+            border: 1px solid var(--panel-border);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            outline: none;
+            font-size: 11px;
+            transition: border-color 0.15s;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--accent-blue);
+        }
+
+        /* Progress Bars */
+        .market-bar-bg {
+            background: var(--bg-main);
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            display: flex;
+            margin-top: 6px;
+            border: 1px solid var(--panel-border);
+        }
+
+        .market-bar-fill {
+            height: 100%;
+            background: var(--accent-blue);
+            transition: width 0.3s ease;
+        }
+
+        /* Modal Corporate Dialog */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(11, 17, 32, 0.85);
+            backdrop-filter: blur(4px);
             display: none;
             justify-content: center;
             align-items: center;
@@ -226,62 +348,106 @@
 
         .modal-card {
             background: var(--panel-bg);
-            border: 2px solid var(--accent-red);
-            border-radius: 6px;
-            padding: 20px;
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            padding: 24px;
             width: 90%;
-            max-width: 450px;
+            max-width: 480px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
             text-align: center;
         }
 
-        /* Feed Logs */
+        /* Corporate Logs / Audit Feeds */
         .log-box {
-            height: 180px;
+            height: 200px;
             overflow-y: auto;
-            background: #05080e;
+            background: var(--bg-main);
             border: 1px solid var(--panel-border);
-            padding: 8px;
-            border-radius: 4px;
-            font-size: 10px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 11px;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
         }
 
-        .log-item { border-bottom: 1px solid #1e293b; padding-bottom: 2px; }
+        .log-item {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 4px;
+            color: var(--text-secondary);
+        }
+
+        .badge {
+            background: var(--panel-card);
+            border: 1px solid var(--panel-border);
+            color: var(--text-secondary);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
 
-    <!-- HUD SUPERIOR -->
+    <!-- EXECUTIVE HEADER -->
     <header>
-        <div class="hud-title">⚙️ WORKSTATION // <span id="node-name">CARREGANDO...</span> <span id="status-sabotage" class="badge" style="color:var(--accent-red); display:none;">⚠️ GREVE EM ANDAMENTO</span></div>
-        <div class="hud-stats">
-            <div>CAIXA: <span class="stat-val" id="hud-cash">R$ 50.000</span></div>
-            <div>PATRIMÔNIO: <span class="stat-amber" id="hud-networth">R$ 50.000</span></div>
-            <div>AÇO: <span id="hud-steel" style="color:#38bdf8;">0 UN</span></div>
-            <div>COMP: <span id="hud-comp" style="color:#c084fc;">0 UN</span></div>
-            <div>CARTEL: <span id="hud-cartel" class="badge">NENHUM</span></div>
+        <div class="brand">
+            <div class="brand-logo">ERP</div>
+            <div class="brand-title">
+                <h1>HOLDING OPERATIONS PLATFORM</h1>
+                <p>UNIDADE: <span id="node-name">CARREGANDO...</span> <span id="status-sabotage" class="badge" style="color:var(--accent-red); display:none;">⚠️ OPERAÇÃO PARALISADA</span></p>
+            </div>
+        </div>
+
+        <div class="kpi-container">
+            <div class="kpi-card">
+                <div class="kpi-label">Caixa Disponível</div>
+                <div class="kpi-value val-green" id="hud-cash">R$ 50.000</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Patrimônio Líquido</div>
+                <div class="kpi-value val-amber" id="hud-networth">R$ 50.000</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Estoque Aço</div>
+                <div class="kpi-value val-blue" id="hud-steel">0 UN</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Componentes</div>
+                <div class="kpi-value val-purple" id="hud-comp">0 UN</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Afiliação Cartel</div>
+                <div class="kpi-value" id="hud-cartel" style="font-size: 12px;">INDEPENDENTE</div>
+            </div>
         </div>
     </header>
 
-    <!-- NAVEGAÇÃO -->
+    <!-- NAVIGATION TABS -->
     <nav>
-        <button class="nav-tab active" onclick="switchTab('tab-fabrica', this)">[1] FORJA & AUTOMAÇÃO</button>
-        <button class="nav-tab" onclick="switchTab('tab-b2b-cartel', this)">[2] B2B & CARTÉIS</button>
-        <button class="nav-tab" onclick="switchTab('tab-licitacoes-mkt', this)">[3] LICITAÇÕES & MARKET SHARE</button>
-        <button class="nav-tab" onclick="switchTab('tab-bolsa-p2p', this)">[4] BOLSA, P2P & CONSELHO</button>
-        <button class="nav-tab" onclick="switchTab('tab-sabotagem-chat', this)">[5] SABOTAGEM, CHAT & X1</button>
+        <button class="nav-tab active" onclick="switchTab('tab-fabrica', this)">📊 Operação & Produção</button>
+        <button class="nav-tab" onclick="switchTab('tab-b2b-cartel', this)">📈 Mercado B2B & Cartéis</button>
+        <button class="nav-tab" onclick="switchTab('tab-licitacoes-mkt', this)">🏛️ Licitações & M&A</button>
+        <button class="nav-tab" onclick="switchTab('tab-bolsa-p2p', this)">💼 Governança & Crédito P2P</button>
+        <button class="nav-tab" onclick="switchTab('tab-sabotagem-chat', this)">🎯 Gestão de Risco & Arbitragem</button>
     </nav>
 
+    <!-- MAIN CONTAINER -->
     <div class="main-container">
         <main>
-            <!-- ABA 1: FORJA & AUTOMAÇÃO -->
+            <!-- TAB 1: OPERAÇÃO E FABRICA -->
             <div id="tab-fabrica" class="tab-content active">
-                <div class="forge-minigame">
+                <!-- CONTROLE DE QUALIDADE / MINIGAME -->
+                <div class="gauge-section">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: bold; color: var(--accent-cyan);">🔥 MINIGAME DE PRECISÃO (FORJA DE AÇO)</span>
-                        <span style="color:var(--accent-amber); font-weight:bold;" id="combo-display">x1 COMBO</span>
+                        <div>
+                            <h3 style="font-size: 13px; font-weight: 700;">CALIBRAÇÃO DE LINHA DE PRODUÇÃO (MANUAL)</h3>
+                            <p style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                                Calibre o maquinário pressionando <strong>[ESPAÇO]</strong> no centro da zona de tolerância para maximizar o rendimento inicial.
+                            </p>
+                        </div>
+                        <span class="badge" id="combo-display" style="color: var(--accent-amber); font-weight: 700;">PRECISÃO: x1</span>
                     </div>
 
                     <div class="gauge-container">
@@ -289,74 +455,95 @@
                         <div class="gauge-needle" id="gauge-needle" style="left: 0%;"></div>
                     </div>
 
-                    <button class="btn-forge" onclick="triggerForgeClick()">🔨 FORJAR AGORA [BARRA DE ESPAÇO]</button>
+                    <button class="btn btn-lg" onclick="triggerForgeClick()">⚙️ CALIBRAR E PROCESSAR LOTE [BARRA DE ESPAÇO]</button>
                 </div>
 
+                <!-- AUTOMAÇÃO OPERACIONAL -->
                 <div class="card">
                     <div class="card-header">
-                        <span>AUTOMAÇÃO & ENGENHARIA</span>
-                        <span id="disp-staff-count" style="color: var(--accent-amber);">0 ENGENHEIROS</span>
+                        <span>CAPACIDADE DE AUTOMAÇÃO INDUSTRIAL</span>
+                        <span id="disp-staff-count" class="badge">0 ENGENHEIROS ALOCADOS</span>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 10px;">
-                        <div>PLANTA: <strong id="disp-fac-lvl">Nível 1</strong></div>
-                        <div>TECNOLOGIA: <strong id="disp-tech-lvl">Nível 1</strong></div>
-                        <div>LUCRO AUTO (10S): <strong id="disp-auto-profit" style="color: var(--accent-green);">R$ 0</strong></div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                        <div class="kpi-card">
+                            <div class="kpi-label">Planta Fabril</div>
+                            <div class="kpi-value" id="disp-fac-lvl">Nível 1</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">Pesquisa & Desenv.</div>
+                            <div class="kpi-value" id="disp-tech-lvl">Nível 1</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">Faturamento Auto (10s)</div>
+                            <div class="kpi-value val-green" id="disp-auto-profit">R$ 0</div>
+                        </div>
                     </div>
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                        <button class="btn" id="btn-buy-staff" onclick="hireStaff()">👥 ENGENHEIRO (R$ 25.000)</button>
-                        <button class="btn" id="btn-exp-fac" onclick="expFactory()">🏭 PLANTA (R$ 100.000)</button>
-                        <button class="btn" id="btn-exp-tech" onclick="expTech()">🔬 P&D (R$ 50.000)</button>
+
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn btn-outline" id="btn-buy-staff" onclick="hireStaff()">👥 Contratar Engenheiro (R$ 25.000)</button>
+                        <button class="btn btn-outline" id="btn-exp-fac" onclick="expFactory()">🏭 Expandir Planta (R$ 100.000)</button>
+                        <button class="btn btn-outline" id="btn-exp-tech" onclick="expTech()">🔬 Avançar P&D (R$ 50.000)</button>
                     </div>
                 </div>
             </div>
 
-            <!-- ABA 2: B2B & CARTÉIS -->
+            <!-- TAB 2: B2B E CARTÉIS -->
             <div id="tab-b2b-cartel" class="tab-content">
-                <!-- CARTÉIS / SINDICATOS -->
-                <div class="card" style="border-color: var(--accent-amber);">
-                    <div class="card-header" style="color: var(--accent-amber);">
-                        <span>🤝 CARTEL INDUSTRIAL & SINDICATO DE HOLDINGS</span>
-                        <span id="cartel-status-badge">SEM CARTEL</span>
+                <!-- CARTÉIS INDUSTRIAIS -->
+                <div class="card">
+                    <div class="card-header">
+                        <span>🤝 SINDICATO DE HOLDINGS & CARTEL INDUSTRIAL</span>
+                        <span id="cartel-status-badge" class="badge">INDEPENDENTE</span>
                     </div>
-                    <div id="cartel-create-box" style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px;">
-                        <input type="text" id="cartel-name-input" placeholder="Nome do Cartel..." style="flex:1;">
-                        <button class="btn btn-amber" onclick="createCartel()">CRIAR CARTEL (R$ 100K)</button>
+
+                    <div id="cartel-create-box" style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px;">
+                        <input type="text" id="cartel-name-input" placeholder="Nome da Aliança Corporativa..." style="flex:1;">
+                        <button class="btn btn-amber" onclick="createCartel()">Fundar Sindicato (R$ 100K)</button>
                     </div>
+
                     <div id="cartel-info-box" style="display: none;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <div>CAIXA COMUM DO CARTEL: <strong id="cartel-treasury-val" style="color: var(--accent-green);">R$ 0</strong></div>
-                            <div>PREÇO MÍNIMO B2B FIXADO: <strong id="cartel-min-price-val" style="color: var(--accent-amber);">R$ 0</strong></div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Fundo Comum da Aliança</div>
+                                <div class="kpi-value val-green" id="cartel-treasury-val">R$ 0</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-label">Piso Tarifário B2B Acordado</div>
+                                <div class="kpi-value val-amber" id="cartel-min-price-val">R$ 0</div>
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                            <input type="number" id="cartel-deposit-amount" placeholder="Valor R$" style="width: 100px;">
-                            <button class="btn btn-amber" onclick="depositCartel()">DEPOSITAR FUNDO</button>
-                            <input type="number" id="cartel-min-price-input" placeholder="P. Mínimo R$" style="width: 100px;">
-                            <button class="btn btn-amber" onclick="setCartelMinPrice()">FIXAR PREÇO MÍNIMO B2B</button>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <input type="number" id="cartel-deposit-amount" placeholder="Aporte R$" style="width: 120px;">
+                            <button class="btn btn-amber" onclick="depositCartel()">Aportar no Fundo</button>
+                            <input type="number" id="cartel-min-price-input" placeholder="Piso R$" style="width: 120px;">
+                            <button class="btn btn-amber" onclick="setCartelMinPrice()">Fixar Piso B2B</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- MERCADO B2B -->
                 <div class="card">
-                    <div class="card-header">LIVRO DE OFERTAS B2B GLOBAL</div>
-                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
+                    <div class="card-header">LIVRO DE OFERTAS MERCANTIS B2B</div>
+                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap;">
                         <select id="b2b-type">
                             <option value="steel">Aço Industrial</option>
                             <option value="comp">Componentes Eletrônicos</option>
                         </select>
-                        <input type="number" id="b2b-qty" placeholder="Qtd" value="10" style="width: 80px;">
-                        <input type="number" id="b2b-price" placeholder="Preço Un R$" value="800" style="width: 100px;">
-                        <button class="btn btn-amber" onclick="createB2BOrder()">PUBLICAR OFERTA B2B</button>
+                        <input type="number" id="b2b-qty" placeholder="Quantidade" value="10" style="width: 90px;">
+                        <input type="number" id="b2b-price" placeholder="Preço Un R$" value="800" style="width: 110px;">
+                        <button class="btn" onclick="createB2BOrder()">Publicar Oferta no Livro</button>
                     </div>
+
                     <table>
                         <thead>
                             <tr>
-                                <th>VENDEDOR</th>
-                                <th>INSUMO</th>
-                                <th>QTD</th>
-                                <th>PREÇO UN.</th>
-                                <th>TOTAL</th>
-                                <th>AÇÃO</th>
+                                <th>Fornecedor</th>
+                                <th>Insumo</th>
+                                <th>Volume</th>
+                                <th>Preço Un.</th>
+                                <th>Total Lote</th>
+                                <th>Ação Institucional</th>
                             </tr>
                         </thead>
                         <tbody id="tb-b2b-orders"></tbody>
@@ -364,77 +551,90 @@
                 </div>
             </div>
 
-            <!-- ABA 3: LICITAÇÕES & MARKET SHARE -->
+            <!-- TAB 3: LICITAÇÕES E MKT SHARE -->
             <div id="tab-licitacoes-mkt" class="tab-content">
-                <!-- LICITAÇÃO GLOBAL -->
-                <div class="card" style="border-color: var(--accent-green);">
-                    <div class="card-header" style="color: var(--accent-green);">
-                        <span>🏛️ LICITAÇÃO PÚBLICA / MEGA-CONTRATO DE GOVERNO</span>
-                        <span id="licitacao-timer" style="color: var(--accent-red); font-weight: bold;">--:--</span>
+                <!-- LICITAÇÕES -->
+                <div class="card">
+                    <div class="card-header">
+                        <span>🏛️ CONTRATOS PÚBLICOS & LICITAÇÕES INTERNACIONAIS</span>
+                        <span id="licitacao-timer" style="color: var(--accent-red); font-weight: 700;">00:00</span>
                     </div>
+
                     <div id="licitacao-box">
-                        <div style="font-weight: bold; font-size: 13px;" id="licitacao-title">AGUARDANDO NOVA LICITAÇÃO...</div>
-                        <div style="margin: 6px 0;" id="licitacao-reqs">Necessidades: ---</div>
-                        <div style="margin-bottom: 8px;">PRÊMIO DA LICITAÇÃO: <strong style="color: var(--accent-green);" id="licitacao-reward">R$ 0</strong></div>
-                        <button class="btn btn-amber" onclick="submitLicitacao()">ENTREGAR RECURSOS & GANHAR PRÊMIO</button>
+                        <h2 style="font-size: 15px; font-weight: 700;" id="licitacao-title">CONTRATO GOVERNAMENTAL</h2>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin: 6px 0;" id="licitacao-reqs">Especificações: ---</p>
+                        
+                        <div style="margin-bottom: 12px;">
+                            <span class="kpi-label">Valor da Adjudicação</span>
+                            <div class="kpi-value val-green" id="licitacao-reward">R$ 0</div>
+                        </div>
+
+                        <button class="btn btn-amber btn-lg" onclick="submitLicitacao()">Submeter Lote & Submeter Proposta</button>
                     </div>
                 </div>
 
-                <!-- MAPA DE MARKET SHARE -->
+                <!-- DOMÍNIO DE MERCADO -->
                 <div class="card">
-                    <div class="card-header">📊 MAPA DE MARKET SHARE & DOMÍNIO DE SETOR</div>
-                    <p style="color: var(--text-muted); margin-bottom: 8px;">Domine +60% de um setor para ganhar o título de Monopolista (+20% bônus em vendas B2B).</p>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <div>SETOR METALÚRGICO (AÇO)</div>
+                    <div class="card-header">📊 MAPA DE MARKET SHARE INDUSTRIAL</div>
+                    <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">Holdings com domínio superior a 60% garantem o status de Monopolista (+20% em operações B2B).</p>
+
+                    <div style="margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="font-weight: 600;">Setor Metalúrgico (Aço)</span>
+                            <span style="font-size: 10px;" id="lbl-mkt-steel" class="badge">Nenhum Monopólio</span>
+                        </div>
                         <div class="market-bar-bg" id="bar-mkt-steel"></div>
-                        <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;" id="lbl-mkt-steel">Monopolista: Nenhum</div>
                     </div>
 
                     <div>
-                        <div>SETOR ELETRÔNICO (COMPONENTES)</div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="font-weight: 600;">Setor Eletroeletrônico (Componentes)</span>
+                            <span style="font-size: 10px;" id="lbl-mkt-comp" class="badge">Nenhum Monopólio</span>
+                        </div>
                         <div class="market-bar-bg" id="bar-mkt-comp"></div>
-                        <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;" id="lbl-mkt-comp">Monopolista: Nenhum</div>
                     </div>
                 </div>
             </div>
 
-            <!-- ABA 4: BOLSA, P2P & CONSELHO -->
+            <!-- TAB 4: BOLSA, P2P E GOVERNANÇA -->
             <div id="tab-bolsa-p2p" class="tab-content">
-                <!-- CONSELHO & GOVERNANÇA -->
-                <div class="card" style="border-color: var(--accent-purple);">
-                    <div class="card-header" style="color: var(--accent-purple);">🏛️ GOVERNANÇA CORPORATIVA & CONSELHO RIVAL</div>
-                    <p style="color: var(--text-muted); margin-bottom: 8px;">Possuir +30% das ações de um rival concede assento no Conselho para interferir na gestão dele.</p>
+                <!-- CONSELHO RIVAL -->
+                <div class="card">
+                    <div class="card-header">🏛️ ASSENTOS NO CONSELHO DE ADMINISTRAÇÃO RIVAL</div>
+                    <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">Participações superiores a 30% concedem voto de interferência estratégica na holding alvo.</p>
+
                     <table>
                         <thead>
                             <tr>
-                                <th>HOLDING RIVAL</th>
-                                <th>SUA PARTICIPAÇÃO</th>
-                                <th>STATUS CONSELHO</th>
-                                <th>AÇÕES DE INTERFERÊNCIA</th>
+                                <th>Holding Alvo</th>
+                                <th>Participação Direta</th>
+                                <th>Status do Conselho</th>
+                                <th>Intervenção Estratégica</th>
                             </tr>
                         </thead>
                         <tbody id="tb-board-control"></tbody>
                     </table>
                 </div>
 
-                <!-- EMPRÉSTIMOS P2P -->
+                <!-- CRÉDITO P2P -->
                 <div class="card">
-                    <div class="card-header">🏦 BANCO P2P ENTRE JOGADORES (COM GARANTIA)</div>
-                    <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
-                        <input type="number" id="p2p-amount" placeholder="Valor Solicitado R$" style="width: 120px;">
-                        <input type="number" id="p2p-interest" placeholder="Juros %" value="15" style="width: 80px;">
-                        <button class="btn btn-amber" onclick="requestP2PLoan()">SOLICITAR EMPRÉSTIMO P2P</button>
+                    <div class="card-header">💳 MERCADO DE CRÉDITO P2P INTEREMPRESARIAL</div>
+                    
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                        <input type="number" id="p2p-amount" placeholder="Volume Crédito R$" style="width: 140px;">
+                        <input type="number" id="p2p-interest" placeholder="Taxa Juros %" value="15" style="width: 90px;">
+                        <button class="btn btn-amber" onclick="requestP2PLoan()">Emitir Título de Dívida P2P</button>
                     </div>
+
                     <table>
                         <thead>
                             <tr>
-                                <th>DEVEDOR</th>
-                                <th>VALOR</th>
-                                <th>JUROS</th>
-                                <th>TOTAL A PAGAR</th>
-                                <th>GARANTIA</th>
-                                <th>AÇÃO</th>
+                                <th>Emissor</th>
+                                <th>Principal</th>
+                                <th>Juros Acordados</th>
+                                <th>Resgate Total</th>
+                                <th>Garantia Institucional</th>
+                                <th>Ação Operacional</th>
                             </tr>
                         </thead>
                         <tbody id="tb-p2p-loans"></tbody>
@@ -442,31 +642,32 @@
                 </div>
             </div>
 
-            <!-- ABA 5: SABOTAGEM, CHAT & X1 -->
+            <!-- TAB 5: RISK MANAGEMENT / CHAT -->
             <div id="tab-sabotagem-chat" class="tab-content">
-                <!-- SABOTAGEM & ESPIONAGEM -->
-                <div class="card" style="border-color: var(--accent-red);">
-                    <div class="card-header" style="color: var(--accent-red);">🕵️ ESPIONAGEM & SABOTAGEM INDUSTRIAL</div>
-                    <p style="color: var(--text-muted); margin-bottom: 8px;">Ataque concorrentes para frear a produção e o crescimento deles.</p>
+                <!-- RISCO E SABOTAGEM -->
+                <div class="card">
+                    <div class="card-header">🎯 ANÁLISE DE RISCO COMPETITIVO & AÇÕES DE CONTERÇÃO</div>
+                    <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">Intervenções diretas na cadeia logística e operacional de holdings concorrentes.</p>
+
                     <table>
                         <thead>
                             <tr>
-                                <th>JOGADOR ALVO</th>
-                                <th>PATRIMÔNIO</th>
-                                <th>AÇÕES DE GUERRA</th>
+                                <th>Holding Alvo</th>
+                                <th>Valoração Total</th>
+                                <th>Ações de Contenção Operacional</th>
                             </tr>
                         </thead>
                         <tbody id="tb-sabotage-targets"></tbody>
                     </table>
                 </div>
 
-                <!-- CHAT & X1 -->
+                <!-- REDE CORPORATIVA DE MENSAGENS -->
                 <div class="card">
-                    <div class="card-header">💬 CHAT GLOBAL</div>
+                    <div class="card-header">💬 REDE CORPORATIVA DE COMUNICAÇÕES</div>
                     <div class="log-box" id="public-chat-box"></div>
-                    <div style="display: flex; gap: 8px; margin-top: 8px;">
-                        <input type="text" id="public-chat-input" placeholder="Mensagem..." style="flex: 1;" onkeypress="if(event.key==='Enter') sendPublicChat()">
-                        <button class="btn" onclick="sendPublicChat()">ENVIAR</button>
+                    <div style="display: flex; gap: 8px; margin-top: 10px;">
+                        <input type="text" id="public-chat-input" placeholder="Transmitir mensagem na rede..." style="flex: 1;" onkeypress="if(event.key==='Enter') sendPublicChat()">
+                        <button class="btn" onclick="sendPublicChat()">Transmitir</button>
                     </div>
                 </div>
             </div>
@@ -475,37 +676,37 @@
         <!-- SIDEBAR AUDITORIA -->
         <aside>
             <div class="card">
-                <div class="card-header">AUDITORIA DE SISTEMA</div>
+                <div class="card-header">AUDITORIA DE SISTEMA (LOGS)</div>
                 <div class="log-box" id="audit-log">
-                    <div class="log-item" style="color: var(--accent-cyan);">[SYS] Todos os módulos carregados.</div>
+                    <div class="log-item">[SYS] Módulo de Inteligência Corporativa Inicializado.</div>
                 </div>
             </div>
         </aside>
     </div>
 
-    <!-- MODAL DUELO X1 -->
+    <!-- MODAL ARBITRAGEM OPERACIONAL (X1 DUEL) -->
     <div class="modal-overlay" id="x1-modal">
         <div class="modal-card">
-            <h2 style="color: var(--accent-red); margin-bottom: 8px;" id="x1-modal-title">⚔️ DESAFIO X1</h2>
-            <p id="x1-modal-desc" style="margin-bottom: 15px;">Um rival desafiou você!</p>
+            <h2 style="font-size: 15px; font-weight: 700; color: var(--accent-amber); margin-bottom: 8px;" id="x1-modal-title">⚔️ ARBITRAGEM DE EFICIÊNCIA OPERACIONAL</h2>
+            <p id="x1-modal-desc" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Uma holding concorrente abriu um processo de arbitragem competitiva!</p>
 
             <div id="x1-arena-controls" style="display: none;">
-                <div style="font-size: 24px; font-weight: bold; color: var(--accent-amber);" id="x1-timer">15s</div>
-                <div style="display: flex; justify-content: space-around; margin: 15px 0;">
-                    <div>SEU PONTOS: <br><strong style="font-size: 18px; color: var(--accent-green);" id="x1-my-score">0</strong></div>
-                    <div>RIVAL: <br><strong style="font-size: 18px; color: var(--accent-red);" id="x1-rival-score">0</strong></div>
+                <div style="font-size: 28px; font-weight: 700; color: var(--accent-amber);" id="x1-timer">15s</div>
+                <div style="display: flex; justify-content: space-around; margin: 16px 0;">
+                    <div>Sua Eficiência: <br><strong style="font-size: 20px;" class="val-green" id="x1-my-score">0</strong></div>
+                    <div>Holding Rival: <br><strong style="font-size: 20px;" class="val-amber" id="x1-rival-score">0</strong></div>
                 </div>
             </div>
 
-            <div id="x1-prompt-actions">
-                <button class="btn btn-amber" onclick="acceptX1Challenge()">ACEITAR (R$ 10.000)</button>
-                <button class="btn btn-red" onclick="declineX1Challenge()">RECUSAR</button>
+            <div id="x1-prompt-actions" style="display: flex; justify-content: center; gap: 8px;">
+                <button class="btn btn-amber" onclick="acceptX1Challenge()">Aceitar Arbitragem (R$ 10.000)</button>
+                <button class="btn btn-outline" onclick="declineX1Challenge()">Recusar</button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- ESTADO DO JOGO ---
+        // --- ESTADO GLOBAL DA HOLDING ---
         const ABLY_KEY = 'SUA_API_KEY_DO_ABLY';
 
         let myState = {
@@ -518,7 +719,7 @@
             comp: 0,
             cartel: null,
             publicShares: 0,
-            ownedShares: {}, // Shares owned of rivals
+            ownedShares: {},
             isUnderStrike: false
         };
 
@@ -531,17 +732,17 @@
         let p2pLoans = [];
         let cartels = {};
 
-        // Minigame
+        // Gauge Minigame State
         let needlePos = 0, needleSpeed = 1.2, needleDirection = 1;
         let targetZoneStart = 40, targetZoneWidth = 20, combo = 1;
 
-        // Licitação Global Active
+        // Public Contract
         let currentLicitacao = {
-            title: 'MEGA-OBRA: PONTE TRANSOCEÂNICA',
+            title: 'MEGA-OBRA: INFRAESTRUTURA LOGÍSTICA PÚBLICA',
             steelReq: 30, compReq: 20, reward: 300000, endsAt: Date.now() + 60000
         };
 
-        // --- MINIGAME LOOP ---
+        // --- GAUGE MINIGAME LOOP ---
         function updateGaugeMinigame() {
             needlePos += needleSpeed * needleDirection;
             if (needlePos >= 100) { needlePos = 100; needleDirection = -1; }
@@ -554,7 +755,7 @@
 
         function triggerForgeClick() {
             if (myState.isUnderStrike) {
-                return alert("⚠️ Sua fábrica está em greve devido à sabotagem rival!");
+                return alert("⚠️ Operações paralisadas devido a uma intervenção na planta!");
             }
 
             const isHit = needlePos >= targetZoneStart && needlePos <= (targetZoneStart + targetZoneWidth);
@@ -563,15 +764,15 @@
                 const reward = 3000 * combo;
                 myState.cash += reward;
                 myState.steel += 2;
-                logAudit(`🎯 ACERTO! +R$ ${formatMoney(reward)} | +2 Aço (Combo x${combo})`);
+                logAudit(`🎯 Calibração Eficiente! +R$ ${formatMoney(reward)} | +2 UN Aço (Combo x${combo})`);
 
                 targetZoneStart = Math.floor(Math.random() * 60) + 10;
                 document.getElementById('target-zone').style.left = targetZoneStart + '%';
             } else {
                 combo = 1;
-                logAudit(`❌ ERROU A TIMING! Combo resetado.`);
+                logAudit(`❌ Desvio de Calibração. Tolerância perdida.`);
             }
-            document.getElementById('combo-display').innerText = `x${combo} COMBO`;
+            document.getElementById('combo-display').innerText = `PRECISÃO: x${combo}`;
             updateUI();
         }
 
@@ -586,7 +787,7 @@
         try {
             if (ABLY_KEY && ABLY_KEY !== 'SUA_API_KEY_DO_ABLY') {
                 ably = new Ably.Realtime({ key: ABLY_KEY, clientId: myState.name });
-                channel = ably.channels.get('industrial-mega-room');
+                channel = ably.channels.get('industrial-enterprise-v5');
 
                 channel.subscribe('presence-ping', (msg) => {
                     if (msg.data.sender !== myState.name) {
@@ -600,11 +801,11 @@
                         if (msg.data.type === 'greve') {
                             myState.isUnderStrike = true;
                             document.getElementById('status-sabotage').style.display = 'inline';
-                            logAudit(`⚠️ ATENÇÃO: Seu rival ${msg.data.sender} financiou uma GREVE na sua fábrica por 20s!`);
+                            logAudit(`⚠️ INTERVENÇÃO: A holding ${msg.data.sender} financiou uma paralisação em sua fábrica por 20s!`);
                             setTimeout(() => {
                                 myState.isUnderStrike = false;
                                 document.getElementById('status-sabotage').style.display = 'none';
-                                logAudit(`✅ Greve encerrada na fábrica.`);
+                                logAudit(`✅ Operações normalizadas.`);
                             }, 20000);
                         }
                     }
@@ -612,11 +813,11 @@
 
                 channel.subscribe('public-chat', (msg) => {
                     const box = document.getElementById('public-chat-box');
-                    box.innerHTML += `<div class="log-item"><strong>${msg.data.sender}:</strong> ${msg.data.text}</div>`;
+                    box.innerHTML += `<div class="log-item"><strong style="color:var(--accent-blue);">${msg.data.sender}:</strong> ${msg.data.text}</div>`;
                     box.scrollTop = box.scrollHeight;
                 });
             }
-        } catch(e) { console.warn("Offline"); }
+        } catch(e) { console.warn("Offline Mode"); }
 
         setInterval(() => {
             if (channel) {
@@ -627,25 +828,25 @@
             }
         }, 3000);
 
-        // --- SABOTAGEM INDUSTRIAL ---
+        // --- SABOTAGEM / GESTÃO DE RISCO ---
         function executeSabotage(targetName, type) {
             if (type === 'greve') {
-                if (myState.cash < 50000) return alert("Custo da sabotagem: R$ 50.000");
+                if (myState.cash < 50000) return alert("Custo de intervenção: R$ 50.000");
                 myState.cash -= 50000;
                 if (channel) channel.publish('sabotage-event', { sender: myState.name, target: targetName, type: 'greve' });
-                logAudit(`🕵️ Sabotagem de greve enviada para ${targetName}!`);
+                logAudit(`🎯 Ação de contenção contra a holding ${targetName} executada!`);
             }
             updateUI();
         }
 
-        // --- CARTÉIS ---
+        // --- SINDICATOS / CARTÉIS ---
         function createCartel() {
             const name = document.getElementById('cartel-name-input').value.trim();
-            if (!name || myState.cash < 100000) return alert("R$ 100.000 necessários!");
+            if (!name || myState.cash < 100000) return alert("Aporte inicial de R$ 100.000 necessário!");
             myState.cash -= 100000;
             myState.cartel = name;
             cartels[name] = { name, treasury: 0, minPrice: 0, members: [myState.name] };
-            logAudit(`🤝 Cartel '${name}' fundado com sucesso!`);
+            logAudit(`🤝 Sindicato Corporativo '${name}' registrado com sucesso.`);
             updateUI();
         }
 
@@ -654,7 +855,7 @@
             if (amt && myState.cash >= amt && myState.cartel) {
                 myState.cash -= amt;
                 cartels[myState.cartel].treasury += amt;
-                logAudit(`Depositados R$ ${formatMoney(amt)} no cofre do Cartel.`);
+                logAudit(`Aporte de R$ ${formatMoney(amt)} realizado no fundo do sindicato.`);
                 updateUI();
             }
         }
@@ -663,7 +864,7 @@
             const price = parseInt(document.getElementById('cartel-min-price-input').value);
             if (price && myState.cartel) {
                 cartels[myState.cartel].minPrice = price;
-                logAudit(`Preço mínimo de venda B2B fixado em R$ ${price}.`);
+                logAudit(`Piso de precificação B2B fixado em R$ ${price}.`);
                 updateUI();
             }
         }
@@ -674,25 +875,25 @@
                 myState.steel -= currentLicitacao.steelReq;
                 myState.comp -= currentLicitacao.compReq;
                 myState.cash += currentLicitacao.reward;
-                alert(`🏛️ VOCÊ VENCEU A LICITAÇÃO! Prêmios: R$ ${formatMoney(currentLicitacao.reward)}`);
-                logAudit(`🏛️ Licitação vencida! +R$ ${formatMoney(currentLicitacao.reward)}`);
+                alert(`🏛️ PROPOSTA ACEITA! Faturamento contratual: R$ ${formatMoney(currentLicitacao.reward)}`);
+                logAudit(`🏛️ Adjudicação de licitação pública concluída. +R$ ${formatMoney(currentLicitacao.reward)}`);
                 updateUI();
             } else {
-                alert("Recursos insuficientes para atender o contrato público!");
+                alert("Inventário de insumos insuficiente para atender os requisitos do edital público!");
             }
         }
 
-        // --- MERCADO B2B & EMPRÉSTIMOS P2P ---
+        // --- MERCADO B2B & P2P ---
         function createB2BOrder() {
             const type = document.getElementById('b2b-type').value;
             const qty = parseInt(document.getElementById('b2b-qty').value);
             const price = parseInt(document.getElementById('b2b-price').value);
 
             if (myState.cartel && cartels[myState.cartel] && price < cartels[myState.cartel].minPrice) {
-                return alert(`Seu Cartel proíbe vendas B2B abaixo de R$ ${cartels[myState.cartel].minPrice}!`);
+                return alert(`Operação rejeitada: Piso tarifário fixado pelo sindicato é R$ ${cartels[myState.cartel].minPrice}!`);
             }
 
-            if (type === 'steel' && myState.steel < qty) return alert("Aço insuficiente!");
+            if (type === 'steel' && myState.steel < qty) return alert("Estoque de aço insuficiente!");
             if (type === 'steel') myState.steel -= qty;
 
             b2bOrders.push({ id: 'ORD_' + Math.random().toString(36).substr(2,4), seller: myState.name, type, qty, price, total: qty * price });
@@ -704,7 +905,14 @@
             const tb = document.getElementById('tb-b2b-orders');
             tb.innerHTML = '';
             b2bOrders.forEach(o => {
-                tb.innerHTML += `<tr><td>${o.seller}</td><td>${o.type}</td><td>${o.qty}</td><td>R$ ${o.price}</td><td>R$ ${formatMoney(o.total)}</td><td><button class="btn btn-amber">COMPRAR</button></td></tr>`;
+                tb.innerHTML += `<tr>
+                    <td><strong>${o.seller}</strong></td>
+                    <td>${o.type === 'steel' ? 'Aço Industrial' : 'Componentes'}</td>
+                    <td>${o.qty} UN</td>
+                    <td>R$ ${o.price}</td>
+                    <td class="val-green">R$ ${formatMoney(o.total)}</td>
+                    <td><button class="btn btn-outline">Adquirir Lote</button></td>
+                </tr>`;
             });
         }
 
@@ -721,29 +929,38 @@
             const tb = document.getElementById('tb-p2p-loans');
             tb.innerHTML = '';
             p2pLoans.forEach(l => {
-                tb.innerHTML += `<tr><td>${l.borrower}</td><td>R$ ${formatMoney(l.amount)}</td><td>${l.interest}%</td><td>R$ ${formatMoney(l.total)}</td><td>10% AÇÕES</td><td><button class="btn btn-amber">FINANCIAR</button></td></tr>`;
+                tb.innerHTML += `<tr>
+                    <td><strong>${l.borrower}</strong></td>
+                    <td>R$ ${formatMoney(l.amount)}</td>
+                    <td>${l.interest}%</td>
+                    <td>R$ ${formatMoney(l.total)}</td>
+                    <td>10% Participação</td>
+                    <td><button class="btn btn-amber">Financiar Título</button></td>
+                </tr>`;
             });
         }
 
-        // --- MULTIPLAYER PANELS RENDER ---
+        // --- RENDER MULTIPLAYER ---
         function renderMultiplayerPanels() {
-            // Sabotage Table
             const tbSab = document.getElementById('tb-sabotage-targets');
             tbSab.innerHTML = '';
             Object.values(onlinePlayers).forEach(p => {
-                tbSab.innerHTML += `<tr><td>${p.sender}</td><td>R$ ${formatMoney(p.netWorth)}</td><td><button class="btn btn-red" onclick="executeSabotage('${p.sender}', 'greve')">FINANCIAR GREVE (R$ 50K)</button></td></tr>`;
+                tbSab.innerHTML += `<tr>
+                    <td><strong>${p.sender}</strong></td>
+                    <td>R$ ${formatMoney(p.netWorth)}</td>
+                    <td><button class="btn btn-red" onclick="executeSabotage('${p.sender}', 'greve')">Paralisar Operação (R$ 50K)</button></td>
+                </tr>`;
             });
 
-            // Market Share Calculation & Render
-            let totalSteel = myState.steel, totalComp = myState.comp;
-            Object.values(onlinePlayers).forEach(p => { totalSteel += (p.steel || 0); totalComp += (p.comp || 0); });
-
+            let totalSteel = myState.steel;
+            Object.values(onlinePlayers).forEach(p => { totalSteel += (p.steel || 0); });
             const mySteelPct = totalSteel > 0 ? Math.floor((myState.steel / totalSteel) * 100) : 0;
-            document.getElementById('bar-mkt-steel').innerHTML = `<div class="market-bar-fill" style="width: ${mySteelPct}%; background: var(--accent-cyan);"></div>`;
-            document.getElementById('lbl-mkt-steel').innerText = mySteelPct >= 60 ? `👑 VOCÊ É O MONOPOLISTA (${mySteelPct}%)` : `Sua Fatia: ${mySteelPct}%`;
+            
+            document.getElementById('bar-mkt-steel').innerHTML = `<div class="market-bar-fill" style="width: ${mySteelPct}%;"></div>`;
+            document.getElementById('lbl-mkt-steel').innerText = mySteelPct >= 60 ? `Dominância de Mercado (${mySteelPct}%)` : `Participação: ${mySteelPct}%`;
         }
 
-        // --- AUTOMATIC CYCLE (10S) ---
+        // --- CICLO OPERACIONAL (10S) ---
         setInterval(() => {
             if (myState.staffCount > 0 && !myState.isUnderStrike) {
                 myState.cash += Math.floor((myState.factoryLevel * 8000) * (myState.staffCount * 0.3));
@@ -761,7 +978,7 @@
             document.getElementById('hud-networth').innerText = 'R$ ' + formatMoney(calculateNetWorth());
             document.getElementById('hud-steel').innerText = myState.steel + ' UN';
             document.getElementById('hud-comp').innerText = myState.comp + ' UN';
-            document.getElementById('hud-cartel').innerText = myState.cartel || 'NENHUM';
+            document.getElementById('hud-cartel').innerText = myState.cartel || 'INDEPENDENTE';
 
             if (myState.cartel) {
                 document.getElementById('cartel-create-box').style.display = 'none';
@@ -771,7 +988,7 @@
                 document.getElementById('cartel-min-price-val').innerText = 'R$ ' + (cartels[myState.cartel]?.minPrice || 0);
             }
 
-            document.getElementById('disp-staff-count').innerText = `${myState.staffCount} ENGENHEIROS`;
+            document.getElementById('disp-staff-count').innerText = `${myState.staffCount} ENGENHEIROS ALOCADOS`;
             document.getElementById('disp-fac-lvl').innerText = 'Nível ' + myState.factoryLevel;
             document.getElementById('disp-tech-lvl').innerText = 'Nível ' + myState.techLevel;
             document.getElementById('disp-auto-profit').innerText = 'R$ ' + formatMoney((myState.factoryLevel * 8000) * (myState.staffCount * 0.3));
