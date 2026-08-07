@@ -3,410 +3,335 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monopoly GPS - Real World Edition</title>
-
-    <!-- Leaflet (Mapa) -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <!-- Ably (Multiplayer em Tempo Real) -->
+    <title>Industrial Tycoon - Mercado de Indústrias</title>
+    <!-- Ably SDK para Multiplayer em Tempo Real -->
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
 
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
-        body, html { height: 100%; width: 100%; overflow: hidden; }
-        #map { height: 100vh; width: 100vw; z-index: 1; }
-
-        /* HUD Superior */
-        .hud-top {
-            position: absolute; top: 10px; left: 10px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.95); padding: 12px 15px;
-            border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            display: flex; flex-direction: column; gap: 6px; width: 230px;
-        }
-        .hud-title { font-weight: bold; color: #1e293b; font-size: 14px; }
-        .hud-money { color: #16a34a; font-weight: bold; font-size: 18px; }
-        .hud-stats { font-size: 11px; color: #64748b; }
-
-        /* Botões */
-        .btn {
-            background: #6366f1; color: white; border: none; padding: 8px 10px;
-            border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;
-            display: flex; align-items: center; justify-content: center; gap: 5px;
-            text-align: center;
-        }
-        .btn:hover { background: #4f46e5; }
-        .btn:disabled { background: #94a3b8; cursor: not-allowed; }
-        .btn-gps { background: #ef4444; animation: pulse 1.5s infinite; }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.6; }
-            100% { opacity: 1; }
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #6366f1;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --border: #334155;
         }
 
-        /* Chat */
-        .chat-container {
-            position: absolute; bottom: 20px; right: 20px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.95); width: 280px; height: 200px;
-            border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            display: flex; flex-direction: column;
-        }
-        .chat-messages {
-            flex: 1; padding: 10px; overflow-y: auto; font-size: 11px;
-            display: flex; flex-direction: column; gap: 4px;
-        }
-        .chat-messages span { padding: 4px 8px; border-radius: 6px; background: #f1f5f9; width: fit-content; word-break: break-word; }
-        .chat-input { display: flex; border-top: 1px solid #e2e8f0; }
-        .chat-input input { flex: 1; padding: 8px; border: none; outline: none; border-bottom-left-radius: 12px; font-size: 12px; }
-        .chat-input button { padding: 8px 12px; background: #6366f1; color: white; border: none; cursor: pointer; border-bottom-right-radius: 12px; font-weight: bold; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
 
-        .buy-btn {
-            background: #10b981; color: white; border: none; padding: 6px 12px;
-            border-radius: 6px; cursor: pointer; margin-top: 8px; width: 100%; font-weight: bold;
+        /* Header / HUD */
+        header {
+            background: var(--card-bg); border-bottom: 1px solid var(--border);
+            padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
         }
-        .tag-category { background: #e0e7ff; color: #4338ca; padding: 2px 6px; border-radius: 4px; font-size: 10px; text-transform: uppercase; }
+        .player-info h1 { font-size: 18px; color: var(--text-main); }
+        .player-info p { font-size: 12px; color: var(--text-muted); }
+        .wallet { text-align: right; }
+        .wallet .balance { font-size: 22px; font-weight: bold; color: var(--accent-green); }
+        .wallet .net-worth { font-size: 12px; color: var(--text-muted); }
+
+        /* Dashboard Container */
+        .dashboard {
+            display: grid; grid-template-columns: 1fr 320px; gap: 20px;
+            padding: 20px; flex: 1; max-width: 1400px; margin: 0 auto; width: 100%;
+        }
+
+        @media (max-width: 900px) {
+            .dashboard { grid-template-columns: 1fr; }
+        }
+
+        /* Seção do Mercado */
+        .section-title { font-size: 16px; margin-bottom: 12px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+        
+        .industry-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;
+        }
+
+        .industry-card {
+            background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+            padding: 16px; display: flex; flex-direction: column; gap: 10px; position: relative;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .industry-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+
+        .ind-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .ind-name { font-weight: bold; font-size: 16px; }
+        .ind-sector { font-size: 10px; background: #312e81; color: #a5b4fc; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
+        
+        .ind-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; margin: 8px 0; }
+        .ind-details span { color: var(--text-muted); font-size: 11px; display: block; }
+        .ind-details strong { color: var(--text-main); }
+
+        .ind-owner { font-size: 12px; color: var(--accent); font-weight: 500; background: rgba(99, 102, 241, 0.1); padding: 4px 8px; border-radius: 6px; }
+
+        .btn-buy {
+            background: var(--accent); color: white; border: none; padding: 10px;
+            border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s;
+        }
+        .btn-buy:hover { background: #4f46e5; }
+        .btn-buy:disabled { background: var(--border); cursor: not-allowed; opacity: 0.6; }
+
+        /* Painel Lateral (Chat e Jogadores) */
+        .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+        .panel-box {
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 12px; padding: 15px; display: flex; flex-direction: column;
+        }
+
+        .chat-box { height: 300px; }
+        .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 12px; margin-bottom: 10px; }
+        .chat-msg { background: var(--bg-color); padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--accent); }
+        .chat-msg.sys { border-left-color: var(--accent-green); color: var(--text-muted); }
+        
+        .chat-input { display: flex; gap: 8px; }
+        .chat-input input { flex: 1; background: var(--bg-color); border: 1px solid var(--border); color: white; padding: 8px; border-radius: 6px; outline: none; }
+        .chat-input button { background: var(--accent); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+
+        .ranking-list { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+        .ranking-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
     </style>
 </head>
 <body>
 
-    <div class="hud-top">
-        <div class="hud-title">🌍 <span id="player-name">Investidor</span></div>
-        <div class="hud-money">R$ <span id="money-display">15.000</span></div>
-        <div class="hud-stats">Empresas: <span id="companies-display">0</span> | <span id="online-display">1 Online</span></div>
-        
-        <button id="gps-btn" class="btn btn-gps" onclick="initGPS()">📍 PERMITIR GPS</button>
-        <button id="scan-button" class="btn" style="display:none;" onclick="triggerManualScan()">🔍 Escanear Região</button>
-    </div>
-
-    <div class="chat-container">
-        <div class="chat-messages" id="chat-box"></div>
-        <div class="chat-input">
-            <input type="text" id="chat-msg" placeholder="Chat..." onkeypress="handleEnter(event)" />
-            <button onclick="sendChat()">Enviar</button>
+    <header>
+        <div class="player-info">
+            <h1 id="player-display">Investidor</h1>
+            <p>Status: <span id="online-status" style="color: var(--accent-green)">Conectando...</span></p>
         </div>
-    </div>
+        <div class="wallet">
+            <div class="balance" id="balance-display">R$ 50.000.000</div>
+            <div class="net-worth">Patrimônio: R$ <span id="networth-display">50.000.000</span></div>
+        </div>
+    </header>
 
-    <div id="map"></div>
+    <div class="dashboard">
+        <!-- Mercado de Indústrias -->
+        <main>
+            <div class="section-title">
+                <h2>🏭 Mercado de Grandes Indústrias</h2>
+                <span style="font-size: 12px; color: var(--text-muted)">Rendimento automático a cada 10s</span>
+            </div>
+            <div class="industry-grid" id="industry-grid">
+                <!-- Cards de Indústrias gerados via JS -->
+            </div>
+        </main>
+
+        <!-- Sidebar (Chat + Placar) -->
+        <aside class="sidebar">
+            <div class="panel-box chat-box">
+                <div class="section-title">💬 Chat do Mercado</div>
+                <div class="chat-messages" id="chat-messages"></div>
+                <div class="chat-input">
+                    <input type="text" id="chat-input" placeholder="Mensagem..." onkeypress="if(event.key==='Enter') sendChat()" />
+                    <button onclick="sendChat()">Enviar</button>
+                </div>
+            </div>
+
+            <div class="panel-box">
+                <div class="section-title">🏆 Maiores Industriais</div>
+                <div class="ranking-list" id="ranking-list">
+                    <div class="ranking-item"><span>Você</span><strong id="rank-my-worth">R$ 50M</strong></div>
+                </div>
+            </div>
+        </aside>
+    </div>
 
     <script>
-        // --- ESTADO DO JOGO ---
-        const ABLY_KEY = '6mtFVg.r4FswQ:gALyOJRv59kDDrMtl9aEF3C85Rg3X2ye6rBDBN1WDLs'; // Insira sua chave Ably aqui se desejar multiplayer online
-        let playerName = localStorage.getItem('player_name') || prompt("Nome do seu investidor:") || "Player_" + Math.floor(Math.random() * 1000);
-        localStorage.setItem('player_name', playerName);
-        document.getElementById('player-name').innerText = playerName;
+        // --- 1. CONFIGURAÇÃO DE JOGADOR E ESTADO ---
+        const ABLY_KEY = 'SUA_API_KEY_DO_ABLY'; // Insira sua API Key do Ably para ativar o multiplayer real
+        let playerName = localStorage.getItem('tycoon_name') || prompt("Nome da sua Holding / Investidor:") || "Holding_" + Math.floor(Math.random() * 899 + 100);
+        localStorage.setItem('tycoon_name', playerName);
+        document.getElementById('player-display').innerText = playerName;
 
-        const myDeviceId = playerName + '-' + Math.random().toString(36).substring(2, 6);
-        let myMoney = 15000;
-        let myCompaniesCount = 0;
-        let myCoords = null;
-        let firstLocation = true;
+        const myId = playerName + '_' + Math.random().toString(36).substring(2, 5);
+        let myCash = 50000000; // Capital inicial: R$ 50 Milhões
 
-        const companies = {};
-        const companyMarkers = {};
-        const playerMarkers = {};
-
-        // --- MAPA ---
-        const map = L.map('map').setView([-23.5505, -46.6333], 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        let myMarker = null;
-
-        const companyIcon = L.icon({
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/2830/2830305.png',
-            iconSize: [28, 28]
-        });
-
-        function addLog(name, msg) {
-            const box = document.getElementById('chat-box');
-            if (box) {
-                box.innerHTML += `<span><b>${name}:</b> ${msg}</span>`;
-                box.scrollTop = box.scrollHeight;
-            }
-        }
-
-        // --- INICIALIZAÇÃO SEGURA DO GPS ---
-        function initGPS() {
-            if (!("geolocation" in navigator)) {
-                alert("Seu navegador não possui suporte a GPS.");
-                return;
-            }
-
-            addLog("Sistema", "Aguardando GPS...");
-
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    handleGPSPosition(pos);
-                    navigator.geolocation.watchPosition(handleGPSPosition, handleGPSError, {
-                        enableHighAccuracy: true,
-                        maximumAge: 0
-                    });
-                },
-                handleGPSError,
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
-        }
-
-        function handleGPSPosition(pos) {
-            myCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-
-            document.getElementById('gps-btn').style.display = 'none';
-            document.getElementById('scan-button').style.display = 'flex';
-
-            if (firstLocation) {
-                map.setView([myCoords.lat, myCoords.lng], 16);
-                fetchRealPlacesFromAPI(myCoords);
-                firstLocation = false;
-                addLog("Sistema", "GPS Localizado!");
-            }
-
-            if (!myMarker) {
-                myMarker = L.circleMarker([myCoords.lat, myCoords.lng], { 
-                    color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.9, radius: 9 
-                }).addTo(map).bindPopup("Você está aqui");
-            } else {
-                myMarker.setLatLng([myCoords.lat, myCoords.lng]);
-            }
-
-            if (typeof channel !== 'undefined' && channel) {
-                channel.publish('game-event', { type: 'move', id: myDeviceId, name: playerName, coords: myCoords });
-            }
-        }
-
-        function handleGPSError(err) {
-            console.error("Erro GPS:", err);
-            let msg = "Erro ao ler GPS. Permita a localização no ícone de cadeado do navegador.";
-            alert(msg);
-            addLog("Erro", msg);
-        }
-
-        // --- SCAN DE IMÓVEIS E PRÉDIOS REAIS ---
-        let isScanning = false;
-
-        function triggerManualScan() {
-            if (!myCoords) return alert("Ative o GPS primeiro!");
-            fetchRealPlacesFromAPI(myCoords);
-        }
-
-        async function fetchRealPlacesFromAPI(coords) {
-            if (isScanning) return;
-            
-            isScanning = true;
-            const btn = document.getElementById('scan-button');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerText = "⏳ Mapeando...";
-            }
-
-            addLog("Radar", "Buscando prédios e comércios na área...");
-            let placesFound = [];
-
-            // Consulta abrangente: busca Nós (nodes) e Polígonos de Prédios/Lojas (ways) em um raio de 800m
-            const radius = 800;
-            const query = `[out:json][timeout:12];(node["name"](around:${radius},${coords.lat},${coords.lng});way["name"](around:${radius},${coords.lat},${coords.lng}););out center 30;`;
-
-            // Servidores de Mapa
-            const endpoints = [
-                'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query),
-                'https://overpass.kumi.systems/api/interpreter?data=' + encodeURIComponent(query)
-            ];
-
-            for (const url of endpoints) {
-                if (placesFound.length > 0) break;
-
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 7000);
-
-                    const res = await fetch(url, { signal: controller.signal });
-                    clearTimeout(timeoutId);
-
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data && data.elements && data.elements.length > 0) {
-                            data.elements.forEach(place => {
-                                const tags = place.tags || {};
-                                // Obtém a coordenada do centro caso seja um prédio/polígono (way) ou nó (node)
-                                const itemLat = place.lat || (place.center ? place.center.lat : null);
-                                const itemLng = place.lon || (place.center ? place.center.lon : null);
-
-                                if (itemLat && itemLng && tags.name) {
-                                    const cat = tags.amenity || tags.shop || tags.building || tags.office || 'Prédio Comercial';
-                                    placesFound.push({
-                                        id: 'real_' + place.id,
-                                        name: tags.name,
-                                        category: cat,
-                                        price: calculatePrice(cat),
-                                        lat: itemLat,
-                                        lng: itemLng,
-                                        owner: null
-                                    });
-                                }
-                            });
-                        }
-                    }
-                } catch (e) {
-                    console.warn("Tentando servidor secundário...");
-                }
-            }
-
-            // Caso a área seja estritamente residencial ou sem cadastros de nomes no OSM
-            if (placesFound.length === 0) {
-                addLog("Radar", "Sinal fraco de nomes. Mapeando estrutura local...");
-                placesFound = generateEmergencyLocalPlaces(coords);
-            } else {
-                addLog("Radar", `${placesFound.length} imóveis reais encontrados!`);
-            }
-
-            placesFound.forEach(comp => {
-                registerCompany(comp);
-                if (typeof channel !== 'undefined' && channel) {
-                    channel.publish('game-event', { type: 'new-company', company: comp });
-                }
-            });
-
-            setTimeout(() => {
-                isScanning = false;
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerText = "🔍 Escanear Região";
-                }
-            }, 4000);
-        }
-
-        function generateEmergencyLocalPlaces(coords) {
-            const comers = [
-                { name: "Edifício Comercial Central", cat: "office", price: 10000 },
-                { name: "Supermercado da Praça", cat: "supermarket", price: 12000 },
-                { name: "Farmácia & Drogaria", cat: "pharmacy", price: 8000 },
-                { name: "Posto de Serviços", cat: "fuel", price: 9000 },
-                { name: "Centro de Conveniência", cat: "mall", price: 15000 },
-                { name: "Restaurante Executivo", cat: "restaurant", price: 6000 }
-            ];
-
-            return comers.map((item, idx) => {
-                const angle = (idx / comers.length) * 2 * Math.PI;
-                const radius = 0.0018;
-                return {
-                    id: 'local_' + Math.floor(coords.lat * 100) + '_' + idx,
-                    name: item.name,
-                    category: item.cat,
-                    price: item.price,
-                    lat: coords.lat + (Math.sin(angle) * radius),
-                    lng: coords.lng + (Math.cos(angle) * radius),
-                    owner: null
-                };
-            });
-        }
-
-        function calculatePrice(category) {
-            const cat = String(category).toLowerCase();
-            if (cat.includes('bank') || cat.includes('mall') || cat.includes('supermarket') || cat.includes('commercial')) return 12000;
-            if (cat.includes('pharmacy') || cat.includes('fuel') || cat.includes('office')) return 8000;
-            if (cat.includes('restaurant') || cat.includes('fast_food') || cat.includes('bakery')) return 5000;
-            return 3000;
-        }
-
-        function registerCompany(comp) {
-            if (companies[comp.id]) return;
-
-            companies[comp.id] = comp;
-            const marker = L.marker([comp.lat, comp.lng], { icon: companyIcon }).addTo(map);
-            companyMarkers[comp.id] = marker;
-
-            updateCompanyPopup(comp.id);
-        }
-
-        function updateCompanyPopup(compId) {
-            const comp = companies[compId];
-            const marker = companyMarkers[compId];
-
-            let html = `<span class="tag-category">${comp.category}</span><br>`;
-            html += `<b style="font-size: 14px;">${comp.name}</b><br>`;
-            html += `<span style="color:#16a34a; font-weight:bold;">Preço: R$ ${comp.price.toLocaleString('pt-BR')}</span><br>`;
-
-            if (comp.owner) {
-                html += `<small style="color:#4f46e5;">Dono: <b>${comp.owner}</b></small>`;
-            } else {
-                html += `<button class="buy-btn" onclick="buyCompany('${comp.id}')">Comprar Local</button>`;
-            }
-
-            marker.bindPopup(html);
-        }
-
-        window.buyCompany = function(compId) {
-            const comp = companies[compId];
-
-            if (myMoney >= comp.price) {
-                myMoney -= comp.price;
-                myCompaniesCount++;
-                document.getElementById('money-display').innerText = myMoney.toLocaleString('pt-BR');
-                document.getElementById('companies-display').innerText = myCompaniesCount;
-
-                comp.owner = playerName;
-                updateCompanyPopup(compId);
-
-                if (typeof channel !== 'undefined' && channel) {
-                    channel.publish('game-event', { type: 'purchase', companyId: compId, buyerName: playerName });
-                }
-                map.closePopup();
-            } else {
-                alert("Saldo insuficiente!");
-            }
+        // --- 2. LISTA DE GRANDES INDÚSTRIAS REAIS ---
+        const industries = {
+            'schulz': { id: 'schulz', name: 'Schulz Compressores', sector: 'Metalmecânico', price: 25000000, income: 450000, owner: null },
+            'whirlpool': { id: 'whirlpool', name: 'Whirlpool Corp', sector: 'Eletrodomésticos', price: 65000000, income: 1200000, owner: null },
+            'nidec': { id: 'nidec', name: 'Nidec Global Appliance', sector: 'Motores & Compressores', price: 50000000, income: 900000, owner: null },
+            'weg': { id: 'weg', name: 'WEG Equipamentos', sector: 'Eletreletrônico', price: 120000000, income: 2500000, owner: null },
+            'tupy': { id: 'tupy', name: 'Tupy Fundição', sector: 'Metalurgia', price: 35000000, income: 600000, owner: null },
+            'tigre': { id: 'tigre', name: 'Tigre Tubos e Conexões', sector: 'Construção', price: 40000000, income: 700000, owner: null },
+            'embraco': { id: 'embraco', name: 'Embraco Compressors', sector: 'Refrigeração', price: 45000000, income: 800000, owner: null },
+            'grendene': { id: 'grendene', name: 'Grendene Indústria', sector: 'Calçados', price: 30000000, income: 500000, owner: null }
         };
 
-        // --- CONEXÃO ABLY (MULTIPLAYER) ---
-        let ably, channel;
-        try {
-            if (ABLY_KEY && ABLY_KEY !== 'SUA_API_KEY_DO_ABLY') {
-                ably = new Ably.Realtime({ key: ABLY_KEY, clientId: myDeviceId });
-                channel = ably.channels.get('monopoly-gps-v4');
+        // --- 3. RENDERIZAÇÃO DO MERCADO ---
+        function renderMarket() {
+            const grid = document.getElementById('industry-grid');
+            grid.innerHTML = '';
 
-                ably.connection.on('connected', () => {
-                    channel.presence.enter({ name: playerName });
-                    addLog("Multiplayer", "Conectado à sala!");
-                });
+            let totalAssetsValue = 0;
 
-                channel.presence.subscribe(() => {
-                    channel.presence.get((err, members) => {
-                        if (!err) document.getElementById('online-display').innerText = `${members.length} Online`;
-                    });
-                });
+            Object.values(industries).forEach(ind => {
+                if (ind.owner === playerName) {
+                    totalAssetsValue += ind.price;
+                }
 
-                channel.subscribe('game-event', (msg) => {
-                    const data = msg.data;
-                    if (data.type === 'move' && data.id !== myDeviceId) {
-                        if (!playerMarkers[data.id]) {
-                            playerMarkers[data.id] = L.circleMarker([data.coords.lat, data.coords.lng], { color: 'red', radius: 8 }).addTo(map).bindPopup(`<b>${data.name}</b>`);
-                        } else {
-                            playerMarkers[data.id].setLatLng([data.coords.lat, data.coords.lng]);
-                        }
-                    }
-                    if (data.type === 'new-company') registerCompany(data.company);
-                    if (data.type === 'purchase' && companies[data.companyId]) {
-                        companies[data.companyId].owner = data.buyerName;
-                        updateCompanyPopup(data.companyId);
-                    }
-                    if (data.type === 'chat') addLog(data.name, data.message);
-                });
-            }
-        } catch(e) {
-            console.warn("Modo Solo Ativo.");
+                const card = document.createElement('div');
+                card.className = 'industry-card';
+                
+                const isOwner = ind.owner === playerName;
+                const ownerText = ind.owner ? (isOwner ? 'Sua Indústria' : ind.owner) : 'Disponível no Mercado';
+                const buttonText = ind.owner ? (isOwner ? 'Sua Propriedade' : 'Comprar do Dono') : 'Adquirir Indústria';
+                
+                // Preço de recompra (20% mais caro se já tiver dono)
+                const currentCost = ind.owner && !isOwner ? Math.floor(ind.price * 1.2) : ind.price;
+
+                card.innerHTML = `
+                    <div class="ind-header">
+                        <div class="ind-name">${ind.name}</div>
+                        <span class="ind-sector">${ind.sector}</span>
+                    </div>
+                    <div class="ind-details">
+                        <div>
+                            <span>VALOR DE MERCADO</span>
+                            <strong>R$ ${formatMoney(currentCost)}</strong>
+                        </div>
+                        <div>
+                            <span>LUCRO / 10s</span>
+                            <strong style="color: var(--accent-green)">+R$ ${formatMoney(ind.income)}</strong>
+                        </div>
+                    </div>
+                    <div class="ind-owner">👑 ${ownerText}</div>
+                    <button class="btn-buy" 
+                        ${isOwner || myCash < currentCost ? 'disabled' : ''} 
+                        onclick="buyIndustry('${ind.id}')">
+                        ${buttonText}
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+
+            // Atualiza Carteira e Patrimônio
+            document.getElementById('balance-display').innerText = 'R$ ' + formatMoney(myCash);
+            const netWorth = myCash + totalAssetsValue;
+            document.getElementById('networth-display').innerText = formatMoney(netWorth);
+            document.getElementById('rank-my-worth').innerText = 'R$ ' + formatMoney(netWorth);
         }
 
+        // --- 4. AÇÕES DO JOGO ---
+        function buyIndustry(id) {
+            const ind = industries[id];
+            const currentCost = ind.owner ? Math.floor(ind.price * 1.2) : ind.price;
+
+            if (myCash >= currentCost && ind.owner !== playerName) {
+                const previousOwner = ind.owner;
+                myCash -= currentCost;
+                ind.owner = playerName;
+                ind.price = currentCost; // O valor de mercado sobe após a compra
+
+                logSys(`Você adquiriu a **${ind.name}** por R$ ${formatMoney(currentCost)}!`);
+
+                // Notifica no Ably
+                if (channel) {
+                    channel.publish('trade', {
+                        buyer: playerName,
+                        seller: previousOwner,
+                        industryId: id,
+                        price: currentCost,
+                        indName: ind.name
+                    });
+                }
+
+                renderMarket();
+            }
+        }
+
+        // Ciclo de rendimento passivo (A cada 10 segundos)
+        setInterval(() => {
+            let dividendos = 0;
+            Object.values(industries).forEach(ind => {
+                if (ind.owner === playerName) {
+                    dividendos += ind.income;
+                }
+            });
+
+            if (dividendos > 0) {
+                myCash += dividendos;
+                logSys(`Você recebeu **R$ ${formatMoney(dividendos)}** em dividendos industriais.`);
+                renderMarket();
+            }
+        }, 10000);
+
+        // --- 5. MULTIPLAYER COM ABLY ---
+        let ably, channel;
+
+        try {
+            if (ABLY_KEY && ABLY_KEY !== 'SUA_API_KEY_DO_ABLY') {
+                ably = new Ably.Realtime({ key: ABLY_KEY, clientId: myId });
+                channel = ably.channels.get('industrial-market-v1');
+
+                ably.connection.on('connected', () => {
+                    document.getElementById('online-status').innerText = 'Online';
+                    logSys('Conectado ao Mercado Financeiro Global.');
+                });
+
+                // Recebe Compras de Outros Jogadores
+                channel.subscribe('trade', (msg) => {
+                    const data = msg.data;
+                    if (industries[data.industryId]) {
+                        industries[data.industryId].owner = data.buyer;
+                        industries[data.industryId].price = data.price;
+                        
+                        if (data.buyer !== playerName) {
+                            logSys(`**${data.buyer}** comprou a **${data.indName}** por R$ ${formatMoney(data.price)}.`);
+                        }
+                        renderMarket();
+                    }
+                });
+
+                // Chat
+                channel.subscribe('chat', (msg) => {
+                    if (msg.data.sender !== playerName) {
+                        addChatMessage(msg.data.sender, msg.data.text);
+                    }
+                });
+            } else {
+                document.getElementById('online-status').innerText = 'Modo Local (Offline)';
+            }
+        } catch (e) {
+            console.warn("Executando em modo singleplayer/local.");
+        }
+
+        // --- 6. CHAT E UTILITÁRIOS ---
         function sendChat() {
-            const input = document.getElementById('chat-msg');
+            const input = document.getElementById('chat-input');
             const text = input.value.trim();
             if (text) {
-                if (channel) channel.publish('game-event', { type: 'chat', name: playerName, message: text });
-                else addLog(playerName, text);
+                addChatMessage(playerName, text);
+                if (channel) {
+                    channel.publish('chat', { sender: playerName, text: text });
+                }
                 input.value = '';
             }
         }
-        function handleEnter(e) { if (e.key === 'Enter') sendChat(); }
 
-        window.onload = function() {
-            initGPS();
-        };
+        function addChatMessage(sender, text) {
+            const box = document.getElementById('chat-messages');
+            box.innerHTML += `<div class="chat-msg"><b>${sender}:</b> ${text}</div>`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function logSys(msg) {
+            const box = document.getElementById('chat-messages');
+            box.innerHTML += `<div class="chat-msg sys">⚙️ ${msg}</div>`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function formatMoney(amount) {
+            return amount.toLocaleString('pt-BR');
+        }
+
+        // Inicializa o jogo na tela
+        renderMarket();
     </script>
 </body>
 </html>
