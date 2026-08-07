@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monopoly GPS - Arquitetura Desacoplada</title>
+
+    <!-- Leaflet (Mapa) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Ably (Multiplayer & Estado do Jogo) -->
+    <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+        body, html { height: 100%; width: 100%; overflow: hidden; }
+        #map { height: 100vh; width: 100vw; z-index: 1; }
+
+        /* HUD Superior */
+        .hud-top {
+            position: absolute; top: 10px; left: 10px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.95); padding: 12px 15px;
+            border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex; flex-direction: column; gap: 6px; width: 220px;
+        }
+        .hud-title { font-weight: bold; color: #1e293b; font-size: 14px; }
+        .hud-money { color: #16a34a; font-weight: bold; font-size: 18px; }
+        .hud-stats { font-size: 11px; color: #64748b; }
+
+        /* Botão de Scan Manual */
+        .scan-btn {
+            background: #6366f1; color: white; border: none; padding: 6px 10px;
+            border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .scan-btn:hover { background: #4f46e5; }
+        .scan-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+
+        /* Chat */
+        .chat-container {
+            position: absolute; bottom: 20px; right: 20px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.95); width: 280px; height: 220px;
+            border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex; flex-direction: column;
+        }
+        .chat-messages {
+            flex: 1; padding: 10px; overflow-y: auto; font-size: 12px;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .chat-messages span { padding: 4px 8px; border-radius: 6px; background: #f1f5f9; width: fit-content; }
+        .chat-input { display: flex; border-top: 1px solid #e2e8f0; }
+        .chat-input input { flex: 1; padding: 8px; border: none; outline: none; border-bottom-left-radius: 12px; font-size: 12px; }
+        .chat-input button { padding: 8px 12px; background: #6366f1; color: white; border: none; cursor: pointer; border-bottom-right-radius: 12px; font-weight: bold; }
+
+        /* Popups de Compra */
+        .buy-btn {
+            background: #10b981; color: white; border: none; padding: 6px 12px;
+            border-radius: 6px; cursor: pointer; margin-top: 8px; width: 100%; font-weight: bold;
+        }
+        .tag-category { background: #e0e7ff; color: #4338ca; padding: 2px 6px; border-radius: 4px; font-size: 10px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+    <div class="hud-top">
+        <div class="hud-title">🌍 <span id="player-name">Carregando...</span></div>
+        <div class="hud-money">R$ <span id="money-display">15.000</span></div>
+        <div class="hud-stats">Empresas: <span id="companies-display">0</span> | <span id="online-display">0 Online</span></div>
+        <button id="scan-button" class="scan-btn" onclick="triggerManualScan()">🔍 Escanear Região</button>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-messages" id="chat-box"></div>
+        <div class="chat-input">
+            <input type="text" id="chat-msg" placeholder="Chat do jogo..." onkeypress="handleEnter(event)" />
+            <button onclick="sendChat()">Enviar</button>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+        // --- 1. CONFIGURAÇÕES E ESTADO DO JOGO ---
+        const ABLY_KEY = '6mtFVg.r4FswQ:gALyOJRv59kDDrMtl9aEF3C85Rg3X2ye6rBDBN1WDLs'; // Cole sua chave do Ably aqui
+        const playerName = prompt("Nome do seu investidor:") || "Investidor_" + Math.floor(Math.random() * 100);
+        const myDeviceId = playerName + '-' + Math.random().toString(36).substring(2, 6);
+        
+        document.getElementById('player-name').innerText = playerName;
+
+        let myMoney = 15000;
+        let myCompaniesCount = 0;
+        let myCoords = null;
+        let firstLocation = true;
+
+        // Armazenamento em memória (Sem depender de API externa para compras)
+        const companies = {};
+        const companyMarkers = {};
+        const playerMarkers = {};
+
+        const map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        let myMarker = null;
+
+        const companyIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/2830/2830305.png',
+            iconSize: [28, 28]
+        });
+
+        // --- 2. COMUNICAÇÃO EM TEMPO REAL (ABLY) ---
+        // Toda a lógica do jogo (comprar, trocar, mover) roda por aqui!
+        const ably = new Ably.Realtime({ key: ABLY_KEY, clientId: myDeviceId });
+        const channel = ably.channels.get('monopoly-gps-v3');
+
+        ably.connection.on('connected', () => {
+            channel.presence.enter({ name: playerName });
+            addLog("Sistema", "Conectado ao servidor do jogo!");
+        });
+
+        channel.presence.subscribe(() => {
+            channel.presence.get((err, members) => {
+                if (!err) document.getElementById('online-display').innerText = `${members.length} Online`;
+            });
+        });
+
+        // Ouve eventos do jogo enviados por QUALQUER jogador
+        channel.subscribe('game-event', (msg) => {
+            const data = msg.data;
+
+            // Movimento de outro jogador
+            if (data.type === 'move' && data.id !== myDeviceId) {
+                if (!playerMarkers[data.id]) {
+                    playerMarkers[data.id] = L.circleMarker([data.coords.lat, data.coords.lng], { color: 'red', radius: 8 })
+                        .addTo(map).bindPopup(`<b>${data.name}</b>`);
+                } else {
+                    playerMarkers[data.id].setLatLng([data.coords.lat, data.coords.lng]);
+                }
+            }
+
+            // Uma nova empresa foi descoberta e adicionada ao mapa global
+            if (data.type === 'new-company') {
+                registerCompany(data.company);
+            }
+
+            // Transação: Alguém comprou uma empresa (Zero requisição à API de Mapas)
+            if (data.type === 'purchase') {
+                if (companies[data.companyId]) {
+                    companies[data.companyId].owner = data.buyerName;
+                    updateCompanyPopup(data.companyId);
+                    addLog("Mercado", `💰 ${data.buyerName} comprou ${companies[data.companyId].name}!`);
+                }
+            }
+
+            // Chat
+            if (data.type === 'chat') {
+                addLog(data.name, data.message);
+            }
+        });
+
+      // --- 3. CAMADA SECUNDÁRIA: API DE MAPAS COM MÚLTIPLOS ESPELHOS (FALLBACKS) ---
+
+// --- 3. SISTEMA TRIPLE-LAYER DE BUSCA DE MAPAS (PHOTON + OVERPASS + EMERGENCY) ---
+
+let isScanning = false;
+
+function triggerManualScan() {
+    if (!myCoords) return alert("Aguardando localização do GPS...");
+    fetchRealPlacesFromAPI(myCoords);
+}
+
+async function fetchRealPlacesFromAPI(coords) {
+    if (isScanning) return;
+    
+    isScanning = true;
+    const btn = document.getElementById('scan-button');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "⏳ Escaneando...";
+    }
+
+    addLog("Radar", "Iniciando radar de imóveis reais...");
+    let placesFound = [];
+
+    // --- CAMADA 1: PHOTON API (Komoot - Ultra Rápida & Estável) ---
+    try {
+        const photonUrl = `https://photon.komoot.io/api/?lat=${coords.lat}&lon=${coords.lng}&limit=15`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s limit
+
+        const res = await fetch(photonUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+            const data = await res.json();
+            if (data.features && data.features.length > 0) {
+                data.features.forEach(f => {
+                    const props = f.properties || {};
+                    const coordsGeo = f.geometry ? f.geometry.coordinates : null; // [lng, lat]
+
+                    // Filtra apenas pontos com nome e válidos perto de você
+                    if (props.name && coordsGeo && (props.osm_value || props.osm_key === 'amenity' || props.osm_key === 'shop')) {
+                        placesFound.push({
+                            id: 'photon_' + (props.osm_id || Math.random().toString(36).substr(2, 6)),
+                            name: props.name,
+                            category: props.osm_value || props.type || 'Comércio',
+                            price: calculatePrice(props.osm_value || ''),
+                            lat: coordsGeo[1], // Latitude real
+                            lng: coordsGeo[0], // Longitude real
+                            owner: null
+                        });
+                    }
+                });
+            }
+        }
+    } catch (e) {
+        console.warn("Photon API indisponível ou expirou. Tentando Overpass...");
+    }
+
+    // --- CAMADA 2: OVERPASS MIRRORS (Caso a Photon não encontre nada) ---
+    if (placesFound.length === 0) {
+        const OVERPASS_MIRRORS = [
+            'https://overpass-api.de/api/interpreter',
+            'https://overpass.kumi.systems/api/interpreter',
+            'https://overpass.nchc.org.tw/api/interpreter',
+            'https://overpass.private.coffee/api/interpreter'
+        ];
+
+        const radius = 500;
+        const query = `[out:json][timeout:5];(node["name"]["amenity"](around:${radius},${coords.lat},${coords.lng});node["name"]["shop"](around:${radius},${coords.lat},${coords.lng}););out body 10;`;
+
+        for (const mirrorUrl of OVERPASS_MIRRORS) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+                const response = await fetch(mirrorUrl + '?data=' + encodeURIComponent(query), { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) continue;
+                const data = await response.json();
+
+                if (data && data.elements) {
+                    data.elements.forEach(place => {
+                        const tags = place.tags || {};
+                        if (place.lat && place.lon && tags.name) {
+                            placesFound.push({
+                                id: 'osm_' + place.id,
+                                name: tags.name,
+                                category: tags.amenity || tags.shop || 'Comércio',
+                                price: calculatePrice(tags.amenity || tags.shop || ''),
+                                lat: place.lat,
+                                lng: place.lon,
+                                owner: null
+                            });
+                        }
+                    });
+                    if (placesFound.length > 0) break; 
+                }
+            } catch (err) {
+                console.warn(`Mirror ${mirrorUrl} indisponível.`);
+            }
+        }
+    }
+
+    // --- CAMADA 3: REDE DE SEGURANÇA (Gera locais se TODAS as APIs falharem) ---
+    if (placesFound.length === 0) {
+        addLog("Radar", "APIs externas instáveis. Modo de Emergência ativado!");
+        placesFound = generateEmergencyLocalPlaces(coords);
+    }
+
+    // --- REGISTRA E TRANSMITE OS IMÓVEIS ENCONTRADOS ---
+    let count = 0;
+    placesFound.forEach(comp => {
+        channel.publish('game-event', { type: 'new-company', company: comp });
+        count++;
+    });
+
+    addLog("Radar", `Scan finalizado! ${count} imóveis mapeados na região.`);
+
+    setTimeout(() => {
+        isScanning = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "🔍 Escanear Região";
+        }
+    }, 6000);
+}
+
+// Gerador do Modo de Emergência (Garante que sempre haverá jogo, mesmo offline)
+function generateEmergencyLocalPlaces(coords) {
+    const tipos = [
+        { name: "Supermercado Express", cat: "supermarket", price: 12000 },
+        { name: "Farmácia 24h", cat: "pharmacy", price: 8000 },
+        { name: "Padaria & Café Ponto", cat: "bakery", price: 5000 },
+        { name: "Posto de Combustível Central", cat: "fuel", price: 9000 },
+        { name: "Restaurante Sabor Local", cat: "restaurant", price: 6000 }
+    ];
+
+    return tipos.map((item, idx) => {
+        // Espalha os pontos entre 100m e 300m ao redor da latitude/longitude atual do jogador
+        const latOffset = (Math.random() - 0.5) * 0.003;
+        const lngOffset = (Math.random() - 0.5) * 0.003;
+
+        return {
+            id: 'emergencia_' + Date.now() + '_' + idx,
+            name: item.name,
+            category: item.cat,
+            price: item.price,
+            lat: coords.lat + latOffset,
+            lng: coords.lng + lngOffset,
+            owner: null
+        };
+    });
+}
+
+        // Cronograma: Executa o scan automático a cada 3 minutos (180.000 ms)
+        setInterval(() => {
+            if (myCoords) fetchRealPlacesFromAPI(myCoords);
+        }, 180000);
+
+        function calculatePrice(category) {
+            const cat = category.toLowerCase();
+            if (cat.includes('bank') || cat.includes('mall') || cat.includes('supermarket')) return 12000;
+            if (cat.includes('pharmacy') || cat.includes('fuel')) return 8000;
+            if (cat.includes('restaurant') || cat.includes('fast_food')) return 5000;
+            return 3000;
+        }
+
+        // --- 4. GERENCIAMENTO DE EMPRESAS (LOCAL E REDE) ---
+        function registerCompany(comp) {
+            // Se a empresa já existe no mapa, preserva o dono atual e descarta duplicados
+            if (companies[comp.id]) return;
+
+            companies[comp.id] = comp;
+            const marker = L.marker([comp.lat, comp.lng], { icon: companyIcon }).addTo(map);
+            companyMarkers[comp.id] = marker;
+
+            updateCompanyPopup(comp.id);
+        }
+
+        function updateCompanyPopup(compId) {
+            const comp = companies[compId];
+            const marker = companyMarkers[compId];
+
+            let html = `<span class="tag-category">${comp.category}</span><br>`;
+            html += `<b style="font-size: 14px;">${comp.name}</b><br>`;
+            html += `<span style="color:#16a34a; font-weight:bold;">Preço: R$ ${comp.price.toLocaleString('pt-BR')}</span><br>`;
+
+            if (comp.owner) {
+                html += `<small style="color:#4f46e5;">Dono: <b>${comp.owner}</b></small>`;
+            } else {
+                html += `<button class="buy-btn" onclick="buyCompany('${comp.id}')">Comprar Local</button>`;
+            }
+
+            marker.bindPopup(html);
+        }
+
+        // --- 5. AÇÕES DO JOGADOR (100% INDEPENDENTE DA API DE MAPAS) ---
+        window.buyCompany = function(compId) {
+            const comp = companies[compId];
+
+            if (myMoney >= comp.price) {
+                myMoney -= comp.price;
+                myCompaniesCount++;
+                document.getElementById('money-display').innerText = myMoney.toLocaleString('pt-BR');
+                document.getElementById('companies-display').innerText = myCompaniesCount;
+
+                // Transmite a compra instantaneamente via WebSockets
+                channel.publish('game-event', {
+                    type: 'purchase',
+                    companyId: compId,
+                    buyerName: playerName
+                });
+
+                map.closePopup();
+            } else {
+                alert("Saldo insuficiente para comprar este imóvel!");
+            }
+        };
+
+        // --- 6. GEOLOCALIZAÇÃO E CHAT ---
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition((pos) => {
+                myCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+
+                if (firstLocation) {
+                    map.setView([myCoords.lat, myCoords.lng], 16);
+                    fetchRealPlacesFromAPI(myCoords); // Primeiro scan automático ao entrar
+                    firstLocation = false;
+                }
+
+                if (!myMarker) {
+                    myMarker = L.circleMarker([myCoords.lat, myCoords.lng], { color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.8, radius: 9 }).addTo(map).bindPopup("Você");
+                } else {
+                    myMarker.setLatLng([myCoords.lat, myCoords.lng]);
+                }
+
+                channel.publish('game-event', { type: 'move', id: myDeviceId, name: playerName, coords: myCoords });
+            }, (err) => console.log(err), { enableHighAccuracy: true });
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chat-msg');
+            const text = input.value.trim();
+            if (text) {
+                channel.publish('game-event', { type: 'chat', name: playerName, message: text });
+                input.value = '';
+            }
+        }
+        function handleEnter(e) { if (e.key === 'Enter') sendChat(); }
+        function addLog(name, msg) {
+            const box = document.getElementById('chat-box');
+            box.innerHTML += `<span><b>${name}:</b> ${msg}</span>`;
+            box.scrollTop = box.scrollHeight;
+        }
+    </script>
+</body>
+</html>
