@@ -311,27 +311,60 @@
             }
         };
 
-        // --- 5. GEOLOCALIZAÇÃO E CHAT ---
-        if ("geolocation" in navigator) {
-            navigator.geolocation.watchPosition((pos) => {
-                myCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        // --- 5. GEOLOCALIZAÇÃO COM TRATAMENTO DE PERMISSÃO ---
+        function requestLocationPermission() {
+            if (!("geolocation" in navigator)) {
+                alert("Seu navegador não suporta geolocalização.");
+                return;
+            }
 
-                if (firstLocation) {
-                    map.setView([myCoords.lat, myCoords.lng], 16);
-                    fetchRealPlacesFromAPI(myCoords);
-                    firstLocation = false;
-                }
+            addLog("Sistema", "Solicitando acesso ao GPS...");
 
-                if (!myMarker) {
-                    myMarker = L.circleMarker([myCoords.lat, myCoords.lng], { color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.8, radius: 9 }).addTo(map).bindPopup("Você");
-                } else {
-                    myMarker.setLatLng([myCoords.lat, myCoords.lng]);
-                }
+            navigator.geolocation.watchPosition(
+                (pos) => {
+                    myCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
 
-                channel.publish('game-event', { type: 'move', id: myDeviceId, name: playerName, coords: myCoords });
-            }, (err) => console.log(err), { enableHighAccuracy: true });
+                    if (firstLocation) {
+                        map.setView([myCoords.lat, myCoords.lng], 16);
+                        fetchRealPlacesFromAPI(myCoords);
+                        firstLocation = false;
+                        addLog("Sistema", "GPS conectado com sucesso!");
+                    }
+
+                    if (!myMarker) {
+                        myMarker = L.circleMarker([myCoords.lat, myCoords.lng], { 
+                            color: '#2563eb', 
+                            fillColor: '#3b82f6', 
+                            fillOpacity: 0.8, 
+                            radius: 9 
+                        }).addTo(map).bindPopup("Você");
+                    } else {
+                        myMarker.setLatLng([myCoords.lat, myCoords.lng]);
+                    }
+
+                    channel.publish('game-event', { type: 'move', id: myDeviceId, name: playerName, coords: myCoords });
+                },
+                (err) => {
+                    console.error("Erro no GPS:", err);
+                    let msg = "Erro ao obter localização.";
+                    if (err.code === 1) {
+                        msg = "Permissão de GPS negada! Clique no ícone de cadeado na barra de endereço do navegador e permita a Localização.";
+                    } else if (err.code === 2) {
+                        msg = "Sinal de GPS indisponível no momento.";
+                    } else if (err.code === 3) {
+                        msg = "Tempo limite do GPS esgotado.";
+                    }
+                    alert(msg);
+                    addLog("Erro", msg);
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+            );
         }
 
+        // Tenta iniciar o GPS automaticamente
+        requestLocationPermission();
+
+        // --- 6. CHAT E UTILITÁRIOS ---
         function sendChat() {
             const input = document.getElementById('chat-msg');
             const text = input.value.trim();
