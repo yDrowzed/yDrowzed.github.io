@@ -3,14 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MSN NextGen Hangout & X1</title>
+  <title>MSN 3D Hangout & X1</title>
   <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <style>
     :root {
       --bg-dark: #0f172a;
-      --panel-bg: rgba(30, 41, 59, 0.7);
-      --accent: #06b6d4;
-      --accent-hover: #0891b2;
+      --panel-bg: rgba(30, 41, 59, 0.75);
+      --accent: #22c55e;
+      --accent-hover: #16a34a;
       --text: #f8fafc;
       --text-muted: #94a3b8;
       --online: #22c55e;
@@ -66,24 +67,24 @@
 
     button:hover { background: var(--accent-hover); color: #fff; }
 
-    /* Layout do App */
+    /* Layout Principal (3 Colunas: Sidebar | Hangout 3D | Chat) */
     #app-screen {
       display: none;
-      width: 90vw;
-      max-width: 1000px;
-      height: 85vh;
+      width: 95vw;
+      max-width: 1280px;
+      height: 90vh;
       background: var(--panel-bg);
       backdrop-filter: blur(16px);
       border-radius: 16px;
       border: 1px solid rgba(255,255,255,0.1);
-      grid-template-columns: 280px 1fr;
+      grid-template-columns: 240px 1fr 340px;
       overflow: hidden;
       box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7);
     }
 
     /* Sidebar - Usuários */
     .sidebar {
-      background: rgba(15, 23, 42, 0.4);
+      background: rgba(15, 23, 42, 0.5);
       border-right: 1px solid rgba(255,255,255,0.05);
       display: flex;
       flex-direction: column;
@@ -112,19 +113,6 @@
       position: relative;
     }
 
-    .status-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      position: absolute;
-      bottom: 0;
-      right: 0;
-      border: 2px solid var(--bg-dark);
-    }
-
-    .status-online { background-color: var(--online); }
-    .status-busy { background-color: var(--busy); }
-
     .users-list { flex: 1; overflow-y: auto; }
     .user-item {
       display: flex;
@@ -133,10 +121,10 @@
       padding: 0.6rem;
       border-radius: 8px;
       margin-bottom: 0.5rem;
-      background: rgba(255,255,255,0.02);
+      background: rgba(255,255,255,0.03);
     }
 
-    .user-item .info { display: flex; align-items: center; gap: 8px; }
+    .user-item .info { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
     .btn-x1 {
       width: auto;
       padding: 0.3rem 0.6rem;
@@ -145,11 +133,56 @@
       background: #eab308;
     }
 
-    /* Chat Principal */
+    /* Área 3D do Hangout */
+    .viewport-3d {
+      position: relative;
+      background: #020617;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .viewport-header {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(8px);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      border: 1px solid rgba(255,255,255,0.1);
+      pointer-events: none;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Tags de Nome Flutuantes no 3D */
+    .name-tag {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      pointer-events: none;
+      white-space: nowrap;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    /* Chat Area Correção (Fix do Overflow) */
     .chat-area {
       display: flex;
       flex-direction: column;
       height: 100%;
+      background: rgba(15, 23, 42, 0.3);
+      border-left: 1px solid rgba(255,255,255,0.05);
+      overflow: hidden; /* Mantém o layout preso */
     }
 
     .chat-header {
@@ -158,10 +191,12 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-shrink: 0; /* Impede o cabeçalho de encolher */
     }
 
     .messages-container {
-      flex: 1;
+      flex: 1 1 auto;
+      min-height: 0; /* CHAVE PARA CORRIGIR O BUG: Permite rolagem sem estourar a tela */
       padding: 1rem;
       overflow-y: auto;
       display: flex;
@@ -170,18 +205,19 @@
     }
 
     .message {
-      max-width: 70%;
+      max-width: 85%;
       padding: 0.6rem 0.9rem;
       border-radius: 12px;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       line-height: 1.4;
+      word-break: break-word;
     }
 
     .message.system {
       align-self: center;
       background: rgba(255,255,255,0.05);
       color: var(--text-muted);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
     }
 
     .message.other {
@@ -198,13 +234,15 @@
     .chat-input-area {
       padding: 1rem;
       display: flex;
-      gap: 10px;
+      gap: 8px;
       border-top: 1px solid rgba(255,255,255,0.05);
+      flex-shrink: 0; /* GARANTE que a caixa de digitação NUNCA suma! */
+      background: rgba(15, 23, 42, 0.8);
     }
 
     .chat-input-area input { margin: 0; }
-    .chat-input-area button { width: 100px; margin: 0; }
-    .btn-nudge { width: auto; background: #ec4899; color: white; }
+    .chat-input-area button { width: 90px; margin: 0; }
+    .btn-nudge { width: auto; background: #ec4899; color: white; padding: 0.4rem 0.8rem; font-size: 0.8rem; }
 
     /* Efeito Tremer Tela (Nudge MSN) */
     .shake {
@@ -212,10 +250,10 @@
     }
 
     @keyframes shake {
-      10%, 90% { transform: translate3d(-2px, 0, 0); }
-      20%, 80% { transform: translate3d(4px, 0, 0); }
-      30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
-      40%, 60% { transform: translate3d(8px, 0, 0); }
+      10%, 90% { transform: translate3d(-3px, 0, 0); }
+      20%, 80% { transform: translate3d(5px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-10px, 0, 0); }
+      40%, 60% { transform: translate3d(10px, 0, 0); }
     }
 
     /* Modais */
@@ -223,7 +261,7 @@
       display: none;
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.8);
+      background: rgba(0,0,0,0.85);
       backdrop-filter: blur(8px);
       justify-content: center;
       align-items: center;
@@ -265,34 +303,38 @@
 </head>
 <body>
 
-  <!-- Tela de Auth/Login -->
   <div id="login-screen">
-    <h1>MSN NextGen</h1>
-    <p>Digite sua API Key do Ably e seu apelido para entrar no Hangout.</p>
-    <input type="password" id="ably-key" placeholder="Chave de API do Ably">
+    <h1>MSN 3D Hangout</h1>
+    <p>Insira a sua API Key do Ably e um Apelido para entrar no parque 3D.</p>
+    <input type="password" id="ably-key" placeholder="API Key do Ably">
     <input type="text" id="username" placeholder="Seu Apelido">
-    <button onclick="connectAbly()">Entrar no Hangout</button>
+    <button onclick="connectAbly()">Entrar no Hangout 3D</button>
   </div>
 
-  <!-- App Principal -->
   <div id="app-screen">
     <div class="sidebar">
       <div class="user-profile">
-        <div class="avatar" id="my-avatar">?
-          <div class="status-dot status-online"></div>
-        </div>
+        <div class="avatar" id="my-avatar">?</div>
         <div>
           <div style="font-weight: bold;" id="my-name">Usuário</div>
-          <div style="font-size: 0.8rem; color: var(--text-muted);">Online</div>
+          <div style="font-size: 0.78rem; color: var(--accent);">● Online no 3D</div>
         </div>
       </div>
-      <h4 style="margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">PESSOAS ONLINE</h4>
+      <h4 style="margin-bottom: 0.5rem; font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.5px;">PESSOAS NO HANGOUT</h4>
       <div class="users-list" id="users-list"></div>
+    </div>
+
+    <div class="viewport-3d">
+      <div class="viewport-header">
+        🎮 <b>Clique no chão</b> para andar com seu boneco MSN!
+      </div>
+      <div id="canvas-container"></div>
+      <div id="nametags-container"></div>
     </div>
 
     <div class="chat-area">
       <div class="chat-header">
-        <h3>Lobby Publico</h3>
+        <h3>Bate-Papo</h3>
         <button class="btn-nudge" onclick="sendNudge()">⚡ Chamar Atenção</button>
       </div>
       <div class="messages-container" id="messages-container"></div>
@@ -303,11 +345,10 @@
     </div>
   </div>
 
-  <!-- Modal de Desafio X1 -->
   <div class="modal-overlay" id="challenge-modal">
     <div class="modal-card">
       <h3 id="challenge-text">Jogador te chamou pro X1!</h3>
-      <p style="color: var(--text-muted); margin: 1rem 0;">Você aceita o duelo no Jogo da Velha?</p>
+      <p style="color: var(--text-muted); margin: 1rem 0;">Duelo de Jogo da Velha em tempo real.</p>
       <div style="display: flex; gap: 10px;">
         <button onclick="acceptChallenge()" style="background: var(--online);">Aceitar</button>
         <button onclick="declineChallenge()" style="background: var(--busy); color: white;">Recusar</button>
@@ -315,7 +356,6 @@
     </div>
   </div>
 
-  <!-- Modal do Jogo X1 -->
   <div class="modal-overlay" id="game-modal">
     <div class="modal-card">
       <h2 id="game-status">Sua Vez</h2>
@@ -338,21 +378,25 @@
     let ably, lobbyChannel, gameChannel;
     let myClientId, myUsername;
     let currentChallengerId = null;
-    let currentGameRoom = null;
     let mySymbol = 'X';
     let isMyTurn = false;
     let boardState = Array(9).fill(null);
+
+    // --- VARIÁVEIS THREE.JS (CENÁRIO 3D) ---
+    let scene, camera, renderer, raycaster, mouse;
+    let players = {}; // Guarda meshes dos avatares e alvos de movimento
+    const playerColors = [0x00bcd4, 0xab47bc, 0xff7043, 0x26a69a, 0xffca28];
 
     async function connectAbly() {
       const apiKey = document.getElementById('ably-key').value.trim();
       myUsername = document.getElementById('username').value.trim();
 
       if (!apiKey || !myUsername) {
-        alert('Por favor, informe a API Key do Ably e um Apelido.');
+        alert('Por favor, preencha a API Key do Ably e seu Apelido.');
         return;
       }
 
-      myClientId = 'user_' + Math.random().toString(36).substr(2, 9);
+      myClientId = 'usr_' + Math.random().toString(36).substr(2, 7);
 
       ably = new Ably.Realtime({ key: apiKey, clientId: myClientId });
 
@@ -360,40 +404,228 @@
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app-screen').style.display = 'grid';
         document.getElementById('my-name').innerText = myUsername;
-        document.getElementById('my-avatar').firstChild.textContent = myUsername[0].toUpperCase();
+        document.getElementById('my-avatar').innerText = myUsername[0].toUpperCase();
 
+        init3DScene();
         initLobby();
       });
 
-      ably.connection.on('failed', () => {
-        alert('Falha na conexão. Verifique sua API Key.');
-      });
+      ably.connection.on('failed', () => alert('Erro na conexão! Verifique sua API Key.'));
     }
 
+    // --- LÓGICA DO CENÁRIO 3D ---
+    function init3DScene() {
+      const container = document.getElementById('canvas-container');
+      
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0f172a);
+
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.set(0, 14, 16);
+      camera.lookAt(0, 0, 0);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.shadowMap.enabled = true;
+      container.appendChild(renderer.domElement);
+
+      // Luzes
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(10, 20, 10);
+      dirLight.castShadow = true;
+      scene.add(dirLight);
+
+      // Chão do Hangout
+      const floorGeo = new THREE.PlaneGeometry(30, 30);
+      const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+      const floor = new THREE.Mesh(floorGeo, floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      scene.add(floor);
+
+      // Grid decorativo
+      const grid = new THREE.GridHelper(30, 30, 0x22c55e, 0x334155);
+      grid.position.y = 0.01;
+      scene.add(grid);
+
+      // Raycaster para clique no chão
+      raycaster = new THREE.Raycaster();
+      mouse = new THREE.Vector2();
+
+      container.addEventListener('pointerdown', onFloorClick);
+      window.addEventListener('resize', onWindowResize);
+
+      // Meu avatar (Verde MSN estilo clássico)
+      createPlayerAvatar(myClientId, myUsername, 0x22c55e, true);
+
+      animate3D();
+    }
+
+    // Criação do Boneco Clássico do MSN em 3D
+    function createMSNBuddyMesh(colorHex) {
+      const group = new THREE.Group();
+
+      // Material brilhante/glossy característico do ícone 3D do MSN
+      const material = new THREE.MeshPhongMaterial({
+        color: colorHex,
+        shininess: 90,
+        specular: 0xffffff
+      });
+
+      // Cabeça (Esfera)
+      const headGeo = new THREE.SphereGeometry(0.4, 32, 32);
+      const head = new THREE.Mesh(headGeo, material);
+      head.position.y = 1.2;
+      head.castShadow = true;
+      group.add(head);
+
+      // Corpo no formato clássico arredondado (Lathe Geometry)
+      const points = [];
+      for (let i = 0; i <= 20; i++) {
+        const t = i / 20;
+        const radius = Math.sin(t * Math.PI * 0.85) * 0.65;
+        const y = t * 0.9;
+        points.push(new THREE.Vector2(radius, y));
+      }
+      const bodyGeo = new THREE.LatheGeometry(points, 32);
+      const body = new THREE.Mesh(bodyGeo, material);
+      body.castShadow = true;
+      group.add(body);
+
+      return group;
+    }
+
+    function createPlayerAvatar(id, name, colorHex, isMe = false) {
+      if (players[id]) return;
+
+      const avatarMesh = createMSNBuddyMesh(colorHex);
+      const spawnX = (Math.random() - 0.5) * 10;
+      const spawnZ = (Math.random() - 0.5) * 10;
+      
+      avatarMesh.position.set(spawnX, 0, spawnZ);
+      scene.add(avatarMesh);
+
+      // Elemento HTML de Nome Flutuante
+      const tag = document.createElement('div');
+      tag.className = 'name-tag';
+      tag.innerText = isMe ? `${name} (Você)` : name;
+      document.getElementById('nametags-container').appendChild(tag);
+
+      players[id] = {
+        mesh: avatarMesh,
+        targetPos: new THREE.Vector3(spawnX, 0, spawnZ),
+        nameTag: tag,
+        username: name
+      };
+    }
+
+    function onFloorClick(event) {
+      const container = document.getElementById('canvas-container');
+      const rect = container.getBoundingClientRect();
+
+      mouse.x = ((event.clientX - rect.left) / container.clientWidth) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / container.clientHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(scene.children);
+
+      for (let hit of intersects) {
+        if (hit.object.geometry instanceof THREE.PlaneGeometry) {
+          const target = hit.point;
+          players[myClientId].targetPos.set(target.x, 0, target.z);
+
+          // Transmite nova posição via Ably
+          lobbyChannel.publish('move3d', {
+            id: myClientId,
+            x: target.x,
+            z: target.z
+          });
+          break;
+        }
+      }
+    }
+
+    function animate3D() {
+      requestAnimationFrame(animate3D);
+
+      const tempV = new THREE.Vector3();
+      const container = document.getElementById('canvas-container');
+
+      // Atualiza movimentação suave e posição dos nomes de todos os bonecos
+      Object.keys(players).forEach(id => {
+        const p = players[id];
+        
+        // Movimento Suave (Lerp)
+        p.mesh.position.lerp(p.targetPos, 0.1);
+
+        // Olha na direção do movimento
+        if (p.mesh.position.distanceTo(p.targetPos) > 0.1) {
+          p.mesh.lookAt(p.targetPos.x, p.mesh.position.y, p.targetPos.z);
+        }
+
+        // Atualiza posição do NameTag 2D sobre a cabeça 3D
+        p.mesh.getWorldPosition(tempV);
+        tempV.y += 1.8; // Acima da cabeça
+        tempV.project(camera);
+
+        const x = (tempV.x * 0.5 + 0.5) * container.clientWidth;
+        const y = (tempV.y * -0.5 + 0.5) * container.clientHeight;
+
+        p.nameTag.style.left = `${x}px`;
+        p.nameTag.style.top = `${y}px`;
+        p.nameTag.style.display = (tempV.z < 1) ? 'block' : 'none';
+      });
+
+      renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('canvas-container');
+      if (!container) return;
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    // --- LÓGICA MULTIPLAYER (ABLY) ---
     function initLobby() {
       lobbyChannel = ably.channels.get('hangout-lobby');
 
-      // Presença de Usuários
+      // Entra na presença com nome
       lobbyChannel.presence.enter({ username: myUsername });
       
-      lobbyChannel.presence.subscribe(() => {
-        updateUsersList();
-      });
+      lobbyChannel.presence.subscribe(() => updateUsersList());
 
-      // Bate-papo e Eventos Globais
+      // Chat
       lobbyChannel.subscribe('message', (msg) => {
         appendMessage(msg.data.user, msg.data.text, msg.data.type, msg.clientId === myClientId);
       });
 
-      lobbyChannel.subscribe('nudge', (msg) => {
-        triggerNudge(msg.data.user);
+      // Chamar Atenção
+      lobbyChannel.subscribe('nudge', (msg) => triggerNudge(msg.data.user));
+
+      // Movimento 3D dos outros jogadores
+      lobbyChannel.subscribe('move3d', (msg) => {
+        if (msg.clientId !== myClientId && players[msg.data.id]) {
+          players[msg.data.id].targetPos.set(msg.data.x, 0, msg.data.z);
+        }
       });
 
+      // Desafio X1
       lobbyChannel.subscribe('challenge', (msg) => {
         if (msg.data.targetId === myClientId) {
           currentChallengerId = msg.clientId;
-          document.getElementById('challenge-text').innerText = `${msg.data.fromUser} chamou você pro X1!`;
+          document.getElementById('challenge-text').innerText = `${msg.data.fromUser} te chamou pro X1!`;
           document.getElementById('challenge-modal').style.display = 'flex';
+        }
+      });
+
+      lobbyChannel.subscribe('challenge_accepted', (msg) => {
+        if (msg.data.toId === myClientId) {
+          startX1Game(msg.data.roomId, 'X', true);
         }
       });
     }
@@ -403,14 +635,22 @@
       const listContainer = document.getElementById('users-list');
       listContainer.innerHTML = '';
 
+      let colorIdx = 0;
       members.forEach((member) => {
         if (member.clientId === myClientId) return;
+
+        // Adiciona Avatar 3D para novos jogadores
+        if (!players[member.clientId]) {
+          const chosenColor = playerColors[colorIdx % playerColors.length];
+          createPlayerAvatar(member.clientId, member.data?.username || 'Anônimo', chosenColor, false);
+          colorIdx++;
+        }
 
         const userItem = document.createElement('div');
         userItem.className = 'user-item';
         userItem.innerHTML = `
           <div class="info">
-            <div class="avatar" style="width: 28px; height: 28px; font-size: 0.8rem;">
+            <div class="avatar" style="width: 26px; height: 26px; font-size: 0.75rem;">
               ${(member.data?.username || 'U')[0].toUpperCase()}
             </div>
             <span>${member.data?.username || 'Anônimo'}</span>
@@ -454,24 +694,20 @@
       }
 
       container.appendChild(div);
+      // Auto-scroll sem quebrar a caixa de texto
       container.scrollTop = container.scrollHeight;
     }
 
-    /* Lógica do Desafio X1 e Jogo da Velha */
+    /* --- SISTEMA DO JOGO X1 --- */
     function challengeUser(targetId) {
-      lobbyChannel.publish('challenge', {
-        targetId: targetId,
-        fromUser: myUsername
-      });
-      alert('Desafio enviado! Aguarde o oponente aceitar.');
+      lobbyChannel.publish('challenge', { targetId: targetId, fromUser: myUsername });
+      alert('Desafio X1 enviado! Aguarde o oponente aceitar.');
     }
 
     function acceptChallenge() {
       document.getElementById('challenge-modal').style.display = 'none';
       const roomId = [myClientId, currentChallengerId].sort().join('-vs-');
-      startX1Game(roomId, 'O', false); // Quem aceita joga com 'O' e é o segundo a jogar
-      
-      // Notifica o desafiante que aceitou
+      startX1Game(roomId, 'O', false);
       lobbyChannel.publish('challenge_accepted', { roomId, toId: currentChallengerId });
     }
 
@@ -480,21 +716,7 @@
       currentChallengerId = null;
     }
 
-    // Escutar resposta do desafio aceito
-    window.addEventListener('load', () => {
-      setInterval(() => {
-        if(lobbyChannel) {
-          lobbyChannel.subscribe('challenge_accepted', (msg) => {
-            if (msg.data.toId === myClientId) {
-              startX1Game(msg.data.roomId, 'X', true); // Quem desafiou joga com 'X' e começa
-            }
-          });
-        }
-      }, 1000);
-    });
-
     function startX1Game(roomId, symbol, turn) {
-      currentGameRoom = roomId;
       mySymbol = symbol;
       isMyTurn = turn;
       boardState = Array(9).fill(null);
@@ -530,8 +752,7 @@
     }
 
     function updateGameStatus() {
-      const statusText = document.getElementById('game-status');
-      statusText.innerText = isMyTurn ? `Sua vez (${mySymbol})` : 'Aguardando oponente...';
+      document.getElementById('game-status').innerText = isMyTurn ? `Sua vez (${mySymbol})` : 'Vez do Oponente...';
     }
 
     function checkWinner() {
@@ -543,14 +764,14 @@
 
       for (let [a, b, c] of wins) {
         if (boardState[a] && boardState[a] === boardState[b] && boardState[a] === boardState[c]) {
-          alert(boardState[a] === mySymbol ? 'Você venceu o X1!' : 'Você perdeu!');
+          alert(boardState[a] === mySymbol ? '🏆 Você venceu o X1!' : '❌ Você perdeu!');
           closeGame();
           return;
         }
       }
 
       if (!boardState.includes(null)) {
-        alert('Empate!');
+        alert('🤝 Empate!');
         closeGame();
       }
     }
