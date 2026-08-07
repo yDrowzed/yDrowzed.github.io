@@ -3,95 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TERMINAL INDUSTRIAL B2B // BLOOMBERG M&A V4.0</title>
+    <title>INDUSTRIAL WORKSTATION // B2B M&A</title>
     
-    <!-- Ably SDK para Comunicação Realtime -->
+    <!-- Ably Realtime SDK -->
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
 
     <style>
         :root {
-            --term-bg: #030a03;
-            --term-dim: #002208;
-            --term-border: #005511;
-            --term-green: #00ff66;
-            --term-green-glow: rgba(0, 255, 102, 0.4);
-            --term-amber: #ffb000;
-            --term-red: #ff3333;
-            --term-cyan: #00e5ff;
-            --term-muted: #007733;
+            --bg-main: #0a0d14;
+            --panel-bg: #121824;
+            --panel-border: #1e293b;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-cyan: #06b6d4;
+            --text-main: #f1f5f9;
+            --text-muted: #64748b;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'JetBrains Mono', 'Segoe UI Mono', monospace; }
 
         body {
-            background-color: var(--term-bg);
-            color: var(--term-green);
+            background-color: var(--bg-main);
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            overflow-x: hidden;
-            text-shadow: 0 0 4px var(--term-green-glow);
             font-size: 13px;
         }
 
-        /* Efeito de Tubo CRT e Scanlines */
-        .crt-overlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%),
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
-            background-size: 100% 3px, 6px 100%;
-            pointer-events: none;
-            z-index: 999;
-        }
-
-        /* Top HUD / Ticker Bloomberg */
+        /* Top HUD Clean */
         header {
-            background: #001100;
-            border-bottom: 2px solid var(--term-green);
-            padding: 8px 15px;
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 10px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 15px;
         }
 
-        .sys-id { font-weight: bold; color: var(--term-cyan); }
-        .hud-ticker { display: flex; gap: 20px; font-weight: bold; }
-        .val-green { color: var(--term-green); }
-        .val-amber { color: var(--term-amber); }
-        .val-red { color: var(--term-red); }
+        .hud-title { font-weight: bold; color: var(--accent-cyan); font-size: 14px; }
+        .hud-stats { display: flex; gap: 20px; font-weight: 600; }
+        .stat-val { color: var(--accent-green); font-weight: bold; }
+        .stat-amber { color: var(--accent-amber); font-weight: bold; }
 
-        /* Abas de Comandos [F1] a [F5] */
-        .terminal-nav {
+        /* Navigation Bar */
+        nav {
             display: flex;
-            background: var(--term-dim);
-            border-bottom: 1px solid var(--term-border);
+            background: #0f1420;
+            border-bottom: 1px solid var(--panel-border);
             overflow-x: auto;
         }
 
-        .nav-btn {
+        .nav-tab {
             background: transparent;
             border: none;
-            border-right: 1px solid var(--term-border);
-            color: var(--term-muted);
-            padding: 10px 16px;
+            border-right: 1px solid var(--panel-border);
+            color: var(--text-muted);
+            padding: 12px 20px;
             cursor: pointer;
             font-weight: bold;
             font-size: 12px;
-            text-transform: uppercase;
+            transition: all 0.2s;
         }
 
-        .nav-btn:hover, .nav-btn.active {
-            background: var(--term-green);
-            color: #000;
-            text-shadow: none;
+        .nav-tab:hover, .nav-tab.active {
+            background: var(--panel-bg);
+            color: var(--accent-green);
+            border-bottom: 2px solid var(--accent-green);
         }
 
-        /* Workspace Principal */
-        .container {
+        /* Container Principal */
+        .main-container {
             display: grid;
-            grid-template-columns: 1fr 320px;
+            grid-template-columns: 1fr 300px;
             gap: 15px;
             padding: 15px;
             flex: 1;
@@ -100,196 +87,251 @@
             width: 100%;
         }
 
-        @media (max-width: 950px) {
-            .container { grid-template-columns: 1fr; }
+        @media (max-width: 900px) {
+            .main-container { grid-template-columns: 1fr; }
         }
 
-        .tab-view { display: none; }
-        .tab-view.active { display: block; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
-        /* Painéis e Caixas Físicas CRT */
-        .panel {
-            border: 1px solid var(--term-border);
-            background: rgba(0, 20, 0, 0.4);
+        /* Cards e Painéis */
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
             padding: 15px;
             margin-bottom: 15px;
-            position: relative;
         }
 
-        .panel-header {
-            background: var(--term-border);
-            color: var(--term-green);
-            padding: 4px 8px;
+        .card-header {
+            font-size: 12px;
             font-weight: bold;
-            margin: -15px -15px 12px -15px;
+            color: var(--accent-cyan);
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        /* Tabelas Densas Estilo Terminal Financeiro */
-        table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-        th, td { border: 1px solid var(--term-border); padding: 6px 8px; text-align: left; font-size: 11px; }
-        th { background: var(--term-dim); color: var(--term-amber); }
+        /* Seção Operação Manual da Prensa */
+        .manual-workstation {
+            background: #0d121d;
+            border: 1px solid #1e293b;
+            border-radius: 6px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
 
-        /* Botões do Terminal */
-        .t-btn {
-            background: black;
-            color: var(--term-green);
-            border: 1px solid var(--term-green);
-            padding: 6px 12px;
+        .btn-press {
+            background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
+            color: white;
+            border: none;
+            padding: 18px 28px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+            transition: transform 0.1s, box-shadow 0.1s;
+            user-select: none;
+        }
+
+        .btn-press:active {
+            transform: scale(0.96);
+            box-shadow: 0 2px 6px rgba(34, 197, 94, 0.4);
+        }
+
+        .heat-bar-container {
+            width: 100%;
+            height: 8px;
+            background: #1e293b;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .heat-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-amber);
+            transition: width 0.1s linear;
+        }
+
+        /* Botões e Controls */
+        .btn {
+            background: #1e293b;
+            color: var(--text-main);
+            border: 1px solid #334155;
+            padding: 8px 12px;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 11px;
             font-weight: bold;
-            text-transform: uppercase;
-            transition: all 0.1s;
+            transition: all 0.2s;
         }
 
-        .t-btn:hover:not(:disabled) {
-            background: var(--term-green);
+        .btn:hover:not(:disabled) {
+            background: var(--accent-green);
             color: black;
-            text-shadow: none;
+            border-color: var(--accent-green);
         }
 
-        .t-btn:disabled {
-            border-color: var(--term-muted);
-            color: var(--term-muted);
-            cursor: not-allowed;
-        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .t-btn-amber { border-color: var(--term-amber); color: var(--term-amber); }
-        .t-btn-amber:hover:not(:disabled) { background: var(--term-amber); color: black; }
+        .btn-amber { border-color: var(--accent-amber); color: var(--accent-amber); }
+        .btn-amber:hover:not(:disabled) { background: var(--accent-amber); color: black; }
 
-        .t-btn-red { border-color: var(--term-red); color: var(--term-red); }
-        .t-btn-red:hover:not(:disabled) { background: var(--term-red); color: black; }
+        .btn-red { border-color: var(--accent-red); color: var(--accent-red); }
+        .btn-red:hover:not(:disabled) { background: var(--accent-red); color: white; }
 
-        /* Inputs do Terminal */
-        input[type="text"], input[type="number"], select {
-            background: black;
-            border: 1px solid var(--term-green);
-            color: var(--term-green);
-            padding: 6px;
-            font-size: 11px;
+        /* Tabelas Limpas */
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px 10px; border-bottom: 1px solid var(--panel-border); text-align: left; font-size: 11px; }
+        th { color: var(--text-muted); font-weight: bold; }
+
+        /* Inputs */
+        input[type="number"], input[type="text"], select {
+            background: #090d16;
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 6px 10px;
+            border-radius: 4px;
             outline: none;
+            font-size: 11px;
         }
 
-        /* Medidores e Toggle Switches */
-        .toggle-box {
-            display: flex; align-items: center; gap: 10px; margin: 10px 0;
-            padding: 8px; border: 1px dashed var(--term-border);
-        }
-
-        /* Output Logs */
-        .console-log {
-            height: 250px;
+        /* Sidebar Log Feed */
+        .log-box {
+            height: 280px;
             overflow-y: auto;
-            background: #000;
-            border: 1px solid var(--term-border);
-            padding: 8px;
+            background: #090d16;
+            border: 1px solid var(--panel-border);
+            padding: 10px;
+            border-radius: 4px;
             font-size: 11px;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
         }
 
-        .log-entry { border-bottom: 1px solid #002200; padding-bottom: 2px; }
-        .log-sys { color: var(--term-cyan); }
-        .log-trade { color: var(--term-amber); }
-        .log-alert { color: var(--term-red); }
+        .log-item { border-bottom: 1px solid #1e293b; padding-bottom: 4px; }
     </style>
 </head>
 <body>
 
-    <div class="crt-overlay"></div>
-
-    <!-- HUD TERMINAL -->
+    <!-- HUD SUPERIOR -->
     <header>
-        <div class="sys-id">SYSTEM://TERMINAL_B2B_M&A_V4.0 // NODE: <span id="node-id">LOC-001</span></div>
-        <div class="hud-ticker">
-            <div>CAIXA: <span class="val-green" id="disp-cash">R$ 500.000</span></div>
-            <div>PATRIMÔNIO: <span class="val-amber" id="disp-networth">R$ 500.000</span></div>
-            <div>AÇÕES NO MERCADO: <span class="val-cyan" id="disp-public-shares">0%</span></div>
+        <div class="hud-title">⚙️ INDUSTRIAL WORKSTATION // <span id="node-name">CARREGANDO...</span></div>
+        <div class="hud-stats">
+            <div>CAIXA: <span class="stat-val" id="hud-cash">R$ 50.000</span></div>
+            <div>PATRIMÔNIO: <span class="stat-amber" id="hud-networth">R$ 50.000</span></div>
+            <div>AÇO: <span id="hud-steel" style="color:#38bdf8;">0 UN</span></div>
+            <div>COMP: <span id="hud-comp" style="color:#c084fc;">0 UN</span></div>
         </div>
     </header>
 
-    <!-- NAVEGAÇÃO [F1-F5] -->
-    <nav class="terminal-nav">
-        <button class="nav-btn active" onclick="setTab('tab-holding', this)">[F1] HOLDING & PRODUÇÃO</button>
-        <button class="nav-btn" onclick="setTab('tab-b2b', this)">[F2] MERCADO B2B DE INSUMOS</button>
-        <button class="nav-btn" onclick="setTab('tab-leilao', this)">[F3] LEILÃO M&A AO VIVO</button>
-        <button class="nav-btn" onclick="setTab('tab-bolsa', this)">[F4] BOLSA & OPA HOSTIL</button>
-        <button class="nav-btn" onclick="setTab('tab-comms', this)">[F5] CHAT & CONSOLE</button>
+    <!-- ABAS DE NAVEGAÇÃO -->
+    <nav>
+        <button class="nav-tab active" onclick="switchTab('tab-fabrica', this)">[1] OPERAÇÃO & FÁBRICA</button>
+        <button class="nav-tab" onclick="switchTab('tab-b2b', this)">[2] MERCADO B2B</button>
+        <button class="nav-tab" onclick="switchTab('tab-leilao', this)">[3] LEILÃO M&A</button>
+        <button class="nav-tab" onclick="switchTab('tab-bolsa', this)">[4] BOLSA & OPA</button>
+        <button class="nav-tab" onclick="switchTab('tab-comms', this)">[5] CHAT GLOBAL</button>
     </nav>
 
-    <div class="container">
+    <div class="main-container">
         <main>
-            <!-- F1: HOLDING & OPERAÇÃO -->
-            <div id="tab-holding" class="tab-view active">
-                <div class="panel">
-                    <div class="panel-header">OPERACIONAL FABRIL // DUMPING & MARGEM</div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 15px;">
-                        <div>
-                            <div>PLANTA FABRIL: <strong id="disp-fac-lvl">Nível 1</strong></div>
-                            <div>ENGENHARIA: <strong id="disp-staff">5 Func.</strong></div>
-                            <div>P&D TECNOLÓGICO: <strong id="disp-tech">Nível 1</strong></div>
-                        </div>
-                        <div>
-                            <div>CAPACIDADE: <span id="disp-cap">100 un/ciclo</span></div>
-                            <div>ESTOQUE AÇO: <span id="disp-mat-steel" class="val-amber">0 UN</span></div>
-                            <div>ESTOQUE COMPONENTES: <span id="disp-mat-comp" class="val-amber">0 UN</span></div>
-                        </div>
+            <!-- ABA 1: OPERAÇÃO MANUAL E EXPANSÃO DA FÁBRICA -->
+            <div id="tab-fabrica" class="tab-content active">
+                
+                <!-- OPERAÇÃO MANUAL (Para início de jogo sem funcionários) -->
+                <div class="manual-workstation">
+                    <div style="font-size: 13px; font-weight: bold; margin-bottom: 5px; color: var(--accent-green);">
+                        🔨 BANCADA DE OPERAÇÃO MANUAL DA PRENSA
                     </div>
+                    <p style="color: var(--text-muted); margin-bottom: 15px; font-size: 11px;">
+                        Opere a máquina manualmente para forjar aço, gerar receita imediata e insumos enquanto não possui engenheiros.
+                    </p>
+                    
+                    <button class="btn-press" id="btn-manual-press" onclick="operateMachineManual()">
+                        ⚙️ OPERAR PRENSA MANUAL (+R$ 2.500 / +2 Aço)
+                    </button>
 
-                    <!-- GUERRA DE PREÇOS / DUMPING -->
-                    <div class="toggle-box">
-                        <input type="checkbox" id="chk-dumping" onchange="toggleDumping(this.checked)">
-                        <label for="chk-dumping" style="color: var(--term-red); font-weight: bold; cursor: pointer;">
-                            ⚠️ ATIVAR GUERRA DE PREÇOS / DUMPING (MARGEM 0% -> ROUBA 50% MARKET SHARE DOS RIVAIS)
-                        </label>
-                    </div>
-
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
-                        <button class="t-btn" id="btn-exp-fac" onclick="expFactory()">+ EXPANDIR PLANTA (R$ 100K)</button>
-                        <button class="t-btn" id="btn-exp-tech" onclick="expTech()">+ P&D TECNOLÓGICO (R$ 50K)</button>
-                        <button class="t-btn" id="btn-exp-staff" onclick="expStaff()">+ CONTRATAR ENG. (R$ 25K)</button>
+                    <div style="margin-top: 12px; font-size: 10px; color: var(--text-muted);">AQUECIMENTO DA MÁQUINA</div>
+                    <div class="heat-bar-container">
+                        <div class="heat-bar-fill" id="heat-bar"></div>
                     </div>
                 </div>
 
-                <div class="panel">
-                    <div class="panel-header">MINHAS INDÚSTRIAS GIGANTES ADQUIRIDAS (M&A)</div>
+                <!-- AUTOMAÇÃO E EXPANSÃO -->
+                <div class="card">
+                    <div class="card-header">
+                        <span>AUTOMAÇÃO & ENGENHARIA</span>
+                        <span id="disp-staff-count" style="color: var(--accent-amber);">0 ENGENHEIROS CONTRATADOS</span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                        <div>PLANTA: <strong id="disp-fac-lvl">Nível 1</strong></div>
+                        <div>TECNOLOGIA: <strong id="disp-tech-lvl">Nível 1</strong></div>
+                        <div>CAPACIDADE: <strong id="disp-capacity">0 un/ciclo</strong></div>
+                        <div>LUCRO AUTO (10S): <strong id="disp-auto-profit" style="color: var(--accent-green);">R$ 0</strong></div>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn" id="btn-buy-staff" onclick="hireStaff()">👥 CONTRATAR ENGENHEIRO (R$ 25.000)</button>
+                        <button class="btn" id="btn-exp-fac" onclick="expFactory()">🏭 EXPANDIR PLANTA (R$ 100.000)</button>
+                        <button class="btn" id="btn-exp-tech" onclick="expTech()">🔬 PESQUISA & DESENV. (R$ 50.000)</button>
+                    </div>
+                </div>
+
+                <!-- GUERRA DE PREÇOS / DUMPING -->
+                <div class="card">
+                    <div class="card-header"> ESTRATÉGIA DE MERCADO</div>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="chk-dumping" onchange="toggleDumping(this.checked)">
+                        <span style="color: var(--accent-red); font-weight: bold;">Ativar Guerra de Preços (Dumping) -> Zera margem para roubar faturamento dos rivais</span>
+                    </label>
+                </div>
+
+                <!-- EMPRESAS M&A ADQUIRIDAS -->
+                <div class="card">
+                    <div class="card-header">INDÚSTRIAS GIGANTES SOB SEU CONTROLE</div>
                     <table>
                         <thead>
                             <tr>
                                 <th>INDÚSTRIA</th>
                                 <th>SETOR</th>
-                                <th>INSUMO GERADO / CICLO</th>
-                                <th>DIVIDENDO / 10S</th>
+                                <th>PRODUÇÃO B2B</th>
+                                <th>LUCRO PASSIVO / 10S</th>
                             </tr>
                         </thead>
                         <tbody id="tb-my-giants">
-                            <tr><td colspan="4" style="color: var(--term-muted);">Nenhuma gigante adquirida via leilão ainda.</td></tr>
+                            <tr><td colspan="4" style="color: var(--text-muted); text-align: center;">Nenhuma indústria adquirida via leilão.</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- F2: MERCADO B2B (ORDER BOOK DE INSUMOS) -->
-            <div id="tab-b2b" class="tab-view">
-                <div class="panel">
-                    <div class="panel-header">PUBLICAR OFERTA DE INSUMO NO MERCADO GLOBAL</div>
+            <!-- ABA 2: MERCADO B2B -->
+            <div id="tab-b2b" class="tab-content">
+                <div class="card">
+                    <div class="card-header">OFERTAR INSUMOS PARA OUTROS JOGADORES</div>
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                        <select id="b2b-item-type">
+                        <select id="b2b-type">
                             <option value="steel">Aço Industrial</option>
                             <option value="comp">Componentes Eletrônicos</option>
                         </select>
-                        <input type="number" id="b2b-item-qty" placeholder="Qtd" style="width: 80px;" value="10">
-                        <input type="number" id="b2b-item-price" placeholder="Preço/Un (R$)" style="width: 120px;" value="500">
-                        <button class="t-btn t-btn-amber" onclick="createB2BOrder()">CRIAR ORDEM DE VENDA</button>
+                        <input type="number" id="b2b-qty" placeholder="Quantidade" value="10" style="width: 100px;">
+                        <input type="number" id="b2b-price" placeholder="Preço Un (R$)" value="800" style="width: 120px;">
+                        <button class="btn btn-amber" onclick="createB2BOrder()">CRIAR ORDEM DE VENDA</button>
                     </div>
                 </div>
 
-                <div class="panel">
-                    <div class="panel-header">LIVRO DE OFERTAS B2B (ORDER BOOK GLOBAL)</div>
+                <div class="card">
+                    <div class="card-header">LIVRO DE OFERTAS GLOBAL (ORDER BOOK)</div>
                     <table>
                         <thead>
                             <tr>
@@ -302,255 +344,266 @@
                             </tr>
                         </thead>
                         <tbody id="tb-b2b-orders">
-                            <!-- Ordens Dinâmicas -->
+                            <!-- Ordens inseridas dinamicamente -->
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- F3: LEILÃO M&A AO VIVO -->
-            <div id="tab-leilao" class="tab-view">
-                <div class="panel" style="border-color: var(--term-amber);">
-                    <div class="panel-header" style="background: var(--term-amber); color: black;">🔨 PAINEL DE LEILÃO M&A SINCRONIZADO VIA WEBSOCKET</div>
-                    <div id="auction-active-box">
-                        <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">
-                            EMPRESA EM LEILÃO: <span id="auc-target-name" class="val-cyan">---</span>
-                        </div>
-                        <div>LANCE ATUAL: <strong id="auc-current-bid" class="val-green" style="font-size: 18px;">R$ 0</strong></div>
-                        <div>MAIOR LITIGANTE: <strong id="auc-highest-bidder" class="val-amber">NENHUM</strong></div>
-                        <div style="margin: 10px 0;">TEMPO RESTANTE: <span id="auc-timer" class="val-red" style="font-size: 16px; font-weight: bold;">00:00</span></div>
+            <!-- ABA 3: LEILÃO M&A AO VIVO -->
+            <div id="tab-leilao" class="tab-content">
+                <div class="card" style="border-color: var(--accent-amber);">
+                    <div class="card-header" style="color: var(--accent-amber);">🔨 LEILÃO M&A EM TEMPO REAL</div>
+                    <div>
+                        <div style="font-size: 15px; font-weight: bold;" id="auc-giant-name">EMPRESA: SCHULZ COMPRESSORES</div>
+                        <div style="margin: 8px 0;">MAIOR LANCE: <strong id="auc-bid-val" style="color: var(--accent-green); font-size: 18px;">R$ 500.000.000</strong></div>
+                        <div>LITIGANTE: <span id="auc-bidder-name" style="color: var(--accent-amber);">SISTEMA</span></div>
+                        <div style="margin: 10px 0;">TEMPO RESTANTE: <span id="auc-timer" style="color: var(--accent-red); font-weight: bold;">00:00</span></div>
 
-                        <div style="display: flex; gap: 10px;">
-                            <button class="t-btn t-btn-amber" onclick="placeBid(10000000)">+ R$ 10 MILHÕES</button>
-                            <button class="t-btn t-btn-amber" onclick="placeBid(50000000)">+ R$ 50 MILHÕES</button>
-                            <button class="t-btn t-btn-amber" onclick="placeBid(100000000)">+ R$ 100 MILHÕES</button>
+                        <div style="display: flex; gap: 8px; margin-top: 15px;">
+                            <button class="btn btn-amber" onclick="placeAuctionBid(10000000)">+ R$ 10 MILHÕES</button>
+                            <button class="btn btn-amber" onclick="placeAuctionBid(50000000)">+ R$ 50 MILHÕES</button>
+                            <button class="btn btn-amber" onclick="placeAuctionBid(100000000)">+ R$ 100 MILHÕES</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- F4: BOLSA DE VALORES & OPA HOSTIL -->
-            <div id="tab-bolsa" class="tab-view">
-                <div class="panel">
-                    <div class="panel-header">CAPTAÇÃO DE CAPITAL // ABRIR CAPITAL DA SUA HOLDING (IPO)</div>
-                    <p style="margin-bottom: 10px;">Venda ações da sua empresa para levantar capital imediato. Concorrentes podem comprar suas ações para capturar seus dividendos ou executar uma **OPA Hostil** (Tomada de Controle) se detiverem +50%.</p>
-                    <button class="t-btn" onclick="issueShares(10)">EMITIR +10% AÇÕES NO MERCADO</button>
+            <!-- ABA 4: BOLSA DE VALORES & OPA HOSTIL -->
+            <div id="tab-bolsa" class="tab-content">
+                <div class="card">
+                    <div class="card-header">OFERTA PÚBLICA DE AÇÕES (IPO)</div>
+                    <p style="color: var(--text-muted); margin-bottom: 10px;">Venda participações da sua Holding para captar caixa rápido.</p>
+                    <button class="btn" onclick="issueShares(10)">EMITIR +10% AÇÕES NO MERCADO</button>
                 </div>
 
-                <div class="panel">
-                    <div class="panel-header">MERCADO DE AÇÕES DE HOLDINGS RIVAIS (OPA HOSTIL)</div>
+                <div class="card">
+                    <div class="card-header">HOLDINGS RIVAIS NO MERCADO (TOMADA DE CONTROLE / OPA)</div>
                     <table>
                         <thead>
                             <tr>
                                 <th>HOLDING RIVAL</th>
                                 <th>PATRIMÔNIO</th>
                                 <th>AÇÕES DISPONÍVEIS</th>
-                                <th>PREÇO/LOTE (5%)</th>
-                                <th>SUA PARTICIPAÇÃO</th>
+                                <th>LOTE (5%)</th>
                                 <th>AÇÃO</th>
                             </tr>
                         </thead>
-                        <tbody id="tb-rival-stocks">
-                            <!-- Holdings dos outros players -->
+                        <tbody id="tb-rival-holdings">
+                            <!-- Holdings dos rivais -->
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- F5: CHAT & CONSOLE -->
-            <div id="tab-comms" class="tab-view">
-                <div class="panel">
-                    <div class="panel-header">CHAT GLOBAL B2B</div>
-                    <div class="console-log" id="chat-box" style="height: 180px;"></div>
+            <!-- ABA 5: CHAT GLOBAL -->
+            <div id="tab-comms" class="tab-content">
+                <div class="card">
+                    <div class="card-header">REDE DE COMUNICAÇÃO GLOBAL</div>
+                    <div class="log-box" id="chat-feed" style="height: 220px;"></div>
                     <div style="display: flex; gap: 8px; margin-top: 10px;">
-                        <input type="text" id="input-chat-msg" placeholder="Comando de texto..." style="flex:1;" onkeypress="if(event.key==='Enter') sendChatMsg()">
-                        <button class="t-btn" onclick="sendChatMsg()">ENVIAR</button>
+                        <input type="text" id="chat-input" placeholder="Digite sua mensagem..." style="flex: 1;" onkeypress="if(event.key==='Enter') sendChatMessage()">
+                        <button class="btn" onclick="sendChatMessage()">ENVIAR</button>
                     </div>
                 </div>
             </div>
         </main>
 
-        <!-- SIDEBAR CONSOLE AUDIT LOG -->
+        <!-- SIDEBAR COM LOG DE AUDITORIA DO SISTEMA -->
         <aside>
-            <div class="panel">
-                <div class="panel-header">CONSOLE LOG DE EVENTOS</div>
-                <div class="console-log" id="system-audit-log">
-                    <div class="log-entry log-sys">[SYS] Terminal B2B Inicializado.</div>
+            <div class="card">
+                <div class="card-header">LOG DE AUDITORIA</div>
+                <div class="log-box" id="audit-log">
+                    <div class="log-item" style="color: var(--accent-cyan);">[SYS] Sistema de Operação Inicializado.</div>
                 </div>
             </div>
         </aside>
     </div>
 
     <script>
-        // --- ESTADO GLOBAL DO JOGO ---
-        const ABLY_KEY = 'SUA_API_KEY_DO_ABLY'; // Substitua por sua API Key Ably
+        // --- ESTADO DO JOGO ---
+        const ABLY_KEY = 'SUA_API_KEY_DO_ABLY';
 
         let myState = {
-            name: localStorage.getItem('term_holding_name') || prompt("NOME DA SUA HOLDING:") || "HOLDING_" + Math.floor(Math.random()*900+100),
-            cash: 500000,
+            name: localStorage.getItem('ind_holding_name') || prompt("DIGITE O NOME DA SUA HOLDING:") || "HOLDING_" + Math.floor(Math.random()*899+100),
+            cash: 50000,
             factoryLevel: 1,
             techLevel: 1,
-            staffCount: 5,
-            rawSteel: 50,
-            rawComp: 50,
+            staffCount: 0, // Começa sem funcionários!
+            steel: 0,
+            comp: 0,
+            machineHeat: 0,
             dumping: false,
-            publicSharesPercent: 0,
+            publicShares: 0,
             myGiants: []
         };
 
-        localStorage.setItem('term_holding_name', myState.name);
-        const myNodeId = myState.name + '_' + Math.random().toString(36).substring(2, 5);
-        document.getElementById('node-id').innerText = myNodeId.toUpperCase();
+        localStorage.setItem('ind_holding_name', myState.name);
+        document.getElementById('node-name').innerText = myState.name;
 
-        // Mercado B2B e Leilão
+        const giantsData = {
+            'schulz': { name: 'Schulz Compressores', sector: 'Metalmecânico', item: 'comp', itemQty: 15, income: 45000000 },
+            'tupy': { name: 'Tupy Fundição', sector: 'Metalurgia', item: 'steel', itemQty: 40, income: 55000000 },
+            'tigre': { name: 'Tigre Tubos', sector: 'Construção', item: 'steel', itemQty: 60, income: 95000000 },
+            'weg': { name: 'WEG Equipamentos', sector: 'Eletreletrônico', item: 'comp', itemQty: 80, income: 1800000000 }
+        };
+
         let b2bOrders = [];
         let rivalHoldings = {};
-        
+
         let activeAuction = {
-            active: true,
             giantId: 'schulz',
             giantName: 'Schulz Compressores (3.5B)',
             currentBid: 500000000,
             highestBidder: 'SISTEMA',
-            endsAt: Date.now() + 180000 // 3 min
+            endsAt: Date.now() + 180000
         };
 
-        const giantsData = {
-            'schulz': { name: 'Schulz Compressores', sector: 'Metalmecânico', item: 'comp', itemQty: 20, income: 45000000 },
-            'tupy': { name: 'Tupy Fundição', sector: 'Metalurgia', item: 'steel', itemQty: 50, income: 55000000 },
-            'tigre': { name: 'Tigre Tubos', sector: 'Construção', item: 'steel', itemQty: 80, income: 95000000 },
-            'weg': { name: 'WEG Equipamentos', sector: 'Eletreletrônico', item: 'comp', itemQty: 100, income: 1800000000 }
-        };
+        // --- OPERAÇÃO MANUAL DA MÁQUINA ---
+        function operateMachineManual() {
+            if (myState.machineHeat >= 100) {
+                logAudit('⚠️ Prensa superaquecida! Aguarde o resfriamento.');
+                return;
+            }
+
+            myState.cash += 2500;
+            myState.steel += 2;
+            myState.machineHeat = Math.min(100, myState.machineHeat + 15);
+
+            document.getElementById('heat-bar').style.width = myState.machineHeat + '%';
+            updateUI();
+        }
+
+        // Resfriamento continuo da máquina
+        setInterval(() => {
+            if (myState.machineHeat > 0) {
+                myState.machineHeat = Math.max(0, myState.machineHeat - 8);
+                document.getElementById('heat-bar').style.width = myState.machineHeat + '%';
+            }
+        }, 500);
+
+        // --- AUTOMATIC CYCLE (10s) ---
+        setInterval(() => {
+            if (myState.staffCount > 0) {
+                const steelNeeded = myState.factoryLevel * 2;
+                const compNeeded = myState.factoryLevel * 1;
+
+                let efficiency = 1.0;
+                if (myState.steel >= steelNeeded && myState.comp >= compNeeded) {
+                    myState.steel -= steelNeeded;
+                    myState.comp -= compNeeded;
+                } else {
+                    efficiency = 0.5; // Penalidade por escassez de matéria-prima
+                    logAudit('⚠️ Falta de insumos! Eficiência automatizada caiu para 50%.');
+                }
+
+                let autoProfit = (myState.factoryLevel * 10000) * (1 + (myState.techLevel - 1) * 0.3) * (myState.staffCount * 0.2) * efficiency;
+                if (myState.dumping) autoProfit *= 1.4;
+
+                myState.cash += Math.floor(autoProfit);
+            }
+
+            // Rendimento das Gigantes Adquiridas
+            myState.myGiants.forEach(gId => {
+                const g = giantsData[gId];
+                myState.cash += g.income;
+                if (g.item === 'steel') myState.steel += g.itemQty;
+                if (g.item === 'comp') myState.comp += g.itemQty;
+            });
+
+            updateUI();
+        }, 10000);
+
+        // --- CONTROLES DE EXPANSÃO ---
+        function hireStaff() {
+            const cost = Math.floor(25000 * Math.pow(1.3, myState.staffCount));
+            if (myState.cash >= cost) {
+                myState.cash -= cost;
+                myState.staffCount++;
+                logAudit(`Engenheiro contratado. Total: ${myState.staffCount}`);
+                updateUI();
+            }
+        }
+
+        function expFactory() {
+            const cost = Math.floor(100000 * Math.pow(1.6, myState.factoryLevel - 1));
+            if (myState.cash >= cost) {
+                myState.cash -= cost;
+                myState.factoryLevel++;
+                logAudit(`Planta fabril expandida para Nível ${myState.factoryLevel}`);
+                updateUI();
+            }
+        }
+
+        function expTech() {
+            const cost = Math.floor(50000 * Math.pow(1.8, myState.techLevel - 1));
+            if (myState.cash >= cost) {
+                myState.cash -= cost;
+                myState.techLevel++;
+                logAudit(`P&D Tecnológico avançou para Nível ${myState.techLevel}`);
+                updateUI();
+            }
+        }
+
+        function toggleDumping(val) {
+            myState.dumping = val;
+            logAudit(val ? '⚠️ Guerra de preços ativada.' : 'Guerra de preços desativada.');
+        }
 
         // --- MULTIPLAYER REALTIME (ABLY) ---
         let ably, channel;
         try {
             if (ABLY_KEY && ABLY_KEY !== 'SUA_API_KEY_DO_ABLY') {
-                ably = new Ably.Realtime({ key: ABLY_KEY, clientId: myNodeId });
-                channel = ably.channels.get('b2b-terminal-v4');
+                ably = new Ably.Realtime({ key: ABLY_KEY, clientId: myState.name });
+                channel = ably.channels.get('industrial-room-v1');
 
-                ably.connection.on('connected', () => logConsole('sys', 'CONECTADO À REDE GLOBAL B2B VIA ABLY.'));
+                channel.subscribe('chat', (msg) => {
+                    addChatMsg(msg.data.sender, msg.data.text);
+                });
 
-                // Listeners de Redes Multiplayer
-                channel.subscribe('b2b-new-order', (msg) => {
+                channel.subscribe('b2b-order', (msg) => {
                     b2bOrders.push(msg.data);
                     renderB2BOrders();
                 });
 
-                channel.subscribe('b2b-buy-order', (msg) => {
-                    b2bOrders = b2bOrders.filter(o => o.id !== msg.data.orderId);
-                    if (msg.data.seller === myState.name) {
-                        myState.cash += msg.data.total;
-                        logConsole('trade', `Sua ordem de venda B2B foi comprada! +R$ ${formatMoney(msg.data.total)}`);
-                        updateUI();
-                    }
-                    renderB2BOrders();
-                });
-
                 channel.subscribe('auction-bid', (msg) => {
-                    const data = msg.data;
-                    if (data.bid > activeAuction.currentBid) {
-                        activeAuction.currentBid = data.bid;
-                        activeAuction.highestBidder = data.bidder;
-                        logConsole('trade', `🔨 NOVO LANCE NO LEILÃO: ${data.bidder} -> R$ ${formatMoney(data.bid)}`);
+                    if (msg.data.bid > activeAuction.currentBid) {
+                        activeAuction.currentBid = msg.data.bid;
+                        activeAuction.highestBidder = msg.data.bidder;
                         updateAuctionUI();
                     }
                 });
-
-                channel.subscribe('chat', (msg) => {
-                    addChatLog(msg.data.sender, msg.data.text);
-                });
-
-                channel.subscribe('heartbeat', (msg) => {
-                    if (msg.data.name !== myState.name) {
-                        rivalHoldings[msg.data.name] = msg.data;
-                        renderRivalStocks();
-                    }
-                });
             }
-        } catch(e) { console.warn("Modo Offline"); }
-
-        // Send Heartbeat
-        setInterval(() => {
-            if (channel) {
-                channel.publish('heartbeat', {
-                    name: myState.name,
-                    netWorth: calculateNetWorth(),
-                    publicShares: myState.publicSharesPercent
-                });
-            }
-        }, 5000);
-
-        // --- SISTEMA DE CICLO OPERACIONAL (10S) ---
-        setInterval(() => {
-            // Consumo de Insumos B2B
-            const steelNeeded = myState.factoryLevel * 5;
-            const compNeeded = myState.factoryLevel * 2;
-            let efficiency = 1.0;
-
-            if (myState.rawSteel >= steelNeeded && myState.rawComp >= compNeeded) {
-                myState.rawSteel -= steelNeeded;
-                myState.rawComp -= compNeeded;
-            } else {
-                efficiency = 0.5; // Penalidade por falta de insumos!
-                logConsole('alert', '⚠️ ALERTA: FALTAM INSUMOS (AÇO/COMP) - EFICIÊNCIA FABRIL QUEDA PARA 50%!');
-            }
-
-            // Geração de Insumos via Gigantes do M&A
-            myState.myGiants.forEach(gId => {
-                const g = giantsData[gId];
-                if (g.item === 'steel') myState.rawSteel += g.itemQty;
-                if (g.item === 'comp') myState.rawComp += g.itemQty;
-            });
-
-            // Cálculo do Lucro do Ciclo
-            let baseIncome = (myState.factoryLevel * 15000) * (1 + (myState.techLevel - 1) * 0.4) * efficiency;
-            if (myState.dumping) baseIncome *= 1.5; // Dumping rouba volume dos rivais
-
-            myState.cash += Math.floor(baseIncome);
-            updateUI();
-        }, 10000);
-
-        // --- LÓGICA DE DUMPING & GUERRA DE PREÇOS ---
-        function toggleDumping(val) {
-            myState.dumping = val;
-            logConsole('alert', val ? '⚠️ GUERRA DE PREÇOS ATIVADA: Margem zerada, Volume de mercado +50%.' : 'Guerra de preços desativada.');
-        }
+        } catch(e) { console.warn("Offline"); }
 
         // --- MERCADO B2B ---
         function createB2BOrder() {
-            const item = document.getElementById('b2b-item-type').value;
-            const qty = parseInt(document.getElementById('b2b-item-qty').value);
-            const price = parseInt(document.getElementById('b2b-item-price').value);
+            const type = document.getElementById('b2b-type').value;
+            const qty = parseInt(document.getElementById('b2b-qty').value);
+            const price = parseInt(document.getElementById('b2b-price').value);
 
-            if (item === 'steel' && myState.rawSteel < qty) return alert("Aço insuficiente!");
-            if (item === 'comp' && myState.rawComp < qty) return alert("Componentes insuficientes!");
+            if (type === 'steel' && myState.steel < qty) return alert("Aço insuficiente!");
+            if (type === 'comp' && myState.comp < qty) return alert("Componentes insuficientes!");
 
-            if (item === 'steel') myState.rawSteel -= qty;
-            if (item === 'comp') myState.rawComp -= qty;
+            if (type === 'steel') myState.steel -= qty;
+            if (type === 'comp') myState.comp -= qty;
 
-            const order = {
-                id: 'ORD_' + Math.random().toString(36).substr(2,6),
-                seller: myState.name,
-                item, qty, price, total: qty * price
-            };
-
+            const order = { id: 'ORD_' + Math.random().toString(36).substr(2,5), seller: myState.name, type, qty, price, total: qty * price };
             b2bOrders.push(order);
-            if (channel) channel.publish('b2b-new-order', order);
+            if (channel) channel.publish('b2b-order', order);
             renderB2BOrders();
             updateUI();
         }
 
-        function buyB2BOrder(orderId) {
-            const ord = b2bOrders.find(o => o.id === orderId);
-            if (!ord || myState.cash < ord.total) return alert("Sem saldo!");
+        function buyB2BOrder(id) {
+            const ord = b2bOrders.find(o => o.id === id);
+            if (!ord || myState.cash < ord.total) return alert("Saldo insuficiente!");
 
             myState.cash -= ord.total;
-            if (ord.item === 'steel') myState.rawSteel += ord.qty;
-            if (ord.item === 'comp') myState.rawComp += ord.qty;
+            if (ord.type === 'steel') myState.steel += ord.qty;
+            if (ord.type === 'comp') myState.comp += ord.qty;
 
-            if (channel) channel.publish('b2b-buy-order', { orderId, seller: ord.seller, total: ord.total });
-            b2bOrders = b2bOrders.filter(o => o.id !== orderId);
+            b2bOrders = b2bOrders.filter(o => o.id !== id);
             renderB2BOrders();
             updateUI();
         }
@@ -562,158 +615,89 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${o.seller}</td>
-                    <td>${o.item === 'steel' ? 'AÇO' : 'COMPONENTES'}</td>
-                    <td>${o.qty} un</td>
+                    <td>${o.type === 'steel' ? 'AÇO' : 'COMPONENTES'}</td>
+                    <td>${o.qty} UN</td>
                     <td>R$ ${o.price}</td>
-                    <td class="val-green">R$ ${formatMoney(o.total)}</td>
-                    <td>${o.seller !== myState.name ? `<button class="t-btn t-btn-amber" onclick="buyB2BOrder('${o.id}')">COMPRAR</button>` : 'SUA ORDEM'}</td>
+                    <td style="color: var(--accent-green);">R$ ${formatMoney(o.total)}</td>
+                    <td>${o.seller !== myState.name ? `<button class="btn btn-amber" onclick="buyB2BOrder('${o.id}')">COMPRAR</button>` : 'SUA ORDEM'}</td>
                 `;
                 tb.appendChild(tr);
             });
         }
 
-        // --- LEILÃO M&A AO VIVO ---
-        function placeBid(increment) {
-            const newBid = activeAuction.currentBid + increment;
-            if (myState.cash < newBid) return alert("Saldo insuficiente para dar esse lance!");
+        // --- LEILÃO ---
+        function placeAuctionBid(amount) {
+            const newBid = activeAuction.currentBid + amount;
+            if (myState.cash < newBid) return alert("Caixa insuficiente para cobrir o lance!");
 
             activeAuction.currentBid = newBid;
             activeAuction.highestBidder = myState.name;
-
             if (channel) channel.publish('auction-bid', { bidder: myState.name, bid: newBid });
             updateAuctionUI();
         }
 
         function updateAuctionUI() {
-            document.getElementById('auc-target-name').innerText = activeAuction.giantName;
-            document.getElementById('auc-current-bid').innerText = 'R$ ' + formatMoney(activeAuction.currentBid);
-            document.getElementById('auc-highest-bidder').innerText = activeAuction.highestBidder;
+            document.getElementById('auc-giant-name').innerText = activeAuction.giantName;
+            document.getElementById('auc-bid-val').innerText = 'R$ ' + formatMoney(activeAuction.currentBid);
+            document.getElementById('auc-bidder-name').innerText = activeAuction.highestBidder;
         }
 
-        // Timer do Leilão
-        setInterval(() => {
-            if (!activeAuction.active) return;
-            const diff = activeAuction.endsAt - Date.now();
-            if (diff <= 0) {
-                activeAuction.active = false;
-                document.getElementById('auc-timer').innerText = 'LEILÃO ENCERRADO';
-                if (activeAuction.highestBidder === myState.name) {
-                    myState.cash -= activeAuction.currentBid;
-                    myState.myGiants.push(activeAuction.giantId);
-                    logConsole('trade', `🎉 VOCÊ ARREMATOU A EMPRESA ${activeAuction.giantName}!`);
-                }
-            } else {
-                const sec = Math.floor(diff / 1000);
-                document.getElementById('auc-timer').innerText = `00:${sec < 10 ? '0' : ''}${sec}`;
-            }
-        }, 1000);
-
-        // --- BOLSA & OPA HOSTIL ---
-        function issueShares(percent) {
-            if (myState.publicSharesPercent + percent > 100) return alert("Limite de ações atingido!");
-            myState.publicSharesPercent += percent;
-            const raised = Math.floor(calculateNetWorth() * (percent / 100));
-            myState.cash += raised;
-            logConsole('trade', `Emissão de +${percent}% ações concluída. Levantado: R$ ${formatMoney(raised)}`);
-            updateUI();
-        }
-
-        function renderRivalStocks() {
-            const tb = document.getElementById('tb-rival-stocks');
-            tb.innerHTML = '';
-            Object.values(rivalHoldings).forEach(r => {
-                const cost5Pct = Math.floor(r.netWorth * 0.05);
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${r.name}</td>
-                    <td>R$ ${formatMoney(r.netWorth)}</td>
-                    <td>${r.publicShares}%</td>
-                    <td>R$ ${formatMoney(cost5Pct)}</td>
-                    <td>0%</td>
-                    <td><button class="t-btn t-btn-red" onclick="alert('Iniciando OPA Hostil contra ${r.name}!')">COMPRAR LOTE 5%</button></td>
-                `;
-                tb.appendChild(tr);
-            });
-        }
-
-        // --- EXPANSÕES DE PLANTA ---
-        function expFactory() {
-            const cost = 100000 * Math.pow(1.6, myState.factoryLevel - 1);
-            if (myState.cash >= cost) { myState.cash -= cost; myState.factoryLevel++; updateUI(); }
-        }
-        function expTech() {
-            const cost = 50000 * Math.pow(1.8, myState.techLevel - 1);
-            if (myState.cash >= cost) { myState.cash -= cost; myState.techLevel++; updateUI(); }
-        }
-        function expStaff() {
-            const cost = 25000 * Math.pow(1.3, (myState.staffCount - 5));
-            if (myState.cash >= cost) { myState.cash -= cost; myState.staffCount += 5; updateUI(); }
-        }
-
-        // --- UTILITÁRIOS E UI ---
-        function calculateNetWorth() {
-            return myState.cash + (myState.factoryLevel * 250000) + (myState.techLevel * 150000);
-        }
-
+        // --- ATUALIZAÇÃO DA INTERFACE ---
         function updateUI() {
-            document.getElementById('disp-cash').innerText = 'R$ ' + formatMoney(myState.cash);
-            document.getElementById('disp-networth').innerText = 'R$ ' + formatMoney(calculateNetWorth());
-            document.getElementById('disp-public-shares').innerText = myState.publicSharesPercent + '%';
+            const netWorth = myState.cash + (myState.factoryLevel * 250000) + (myState.techLevel * 150000);
 
+            document.getElementById('hud-cash').innerText = 'R$ ' + formatMoney(myState.cash);
+            document.getElementById('hud-networth').innerText = 'R$ ' + formatMoney(netWorth);
+            document.getElementById('hud-steel').innerText = myState.steel + ' UN';
+            document.getElementById('hud-comp').innerText = myState.comp + ' UN';
+
+            document.getElementById('disp-staff-count').innerText = `${myState.staffCount} ENGENHEIROS CONTRATADOS`;
             document.getElementById('disp-fac-lvl').innerText = 'Nível ' + myState.factoryLevel;
-            document.getElementById('disp-staff').innerText = myState.staffCount + ' Func.';
-            document.getElementById('disp-tech').innerText = 'Nível ' + myState.techLevel;
-            document.getElementById('disp-cap').innerText = (myState.factoryLevel * 100) + ' un/ciclo';
+            document.getElementById('disp-tech-lvl').innerText = 'Nível ' + myState.techLevel;
+            document.getElementById('disp-capacity').innerText = (myState.factoryLevel * 100) + ' un/ciclo';
 
-            document.getElementById('disp-mat-steel').innerText = myState.rawSteel + ' UN';
-            document.getElementById('disp-mat-comp').innerText = myState.rawComp + ' UN';
+            const autoProfit = (myState.factoryLevel * 10000) * (1 + (myState.techLevel - 1) * 0.3) * (myState.staffCount * 0.2);
+            document.getElementById('disp-auto-profit').innerText = 'R$ ' + formatMoney(autoProfit);
 
-            renderMyGiants();
-            updateAuctionUI();
+            const costStaff = Math.floor(25000 * Math.pow(1.3, myState.staffCount));
+            const costFac = Math.floor(100000 * Math.pow(1.6, myState.factoryLevel - 1));
+            const costTech = Math.floor(50000 * Math.pow(1.8, myState.techLevel - 1));
+
+            document.getElementById('btn-buy-staff').innerText = `👥 CONTRATAR ENGENHEIRO (R$ ${formatMoney(costStaff)})`;
+            document.getElementById('btn-exp-fac').innerText = `🏭 EXPANDIR PLANTA (R$ ${formatMoney(costFac)})`;
+            document.getElementById('btn-exp-tech').innerText = `🔬 PESQUISA & DESENV. (R$ ${formatMoney(costTech)})`;
+
+            document.getElementById('btn-buy-staff').disabled = myState.cash < costStaff;
+            document.getElementById('btn-exp-fac').disabled = myState.cash < costFac;
+            document.getElementById('btn-exp-tech').disabled = myState.cash < costTech;
         }
 
-        function renderMyGiants() {
-            const tb = document.getElementById('tb-my-giants');
-            if (myState.myGiants.length === 0) return;
-            tb.innerHTML = '';
-            myState.myGiants.forEach(id => {
-                const g = giantsData[id];
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${g.name}</td>
-                    <td>${g.sector}</td>
-                    <td>+${g.itemQty} ${g.item.toUpperCase()} / CICLO</td>
-                    <td class="val-green">+R$ ${formatMoney(g.income)}</td>
-                `;
-                tb.appendChild(tr);
-            });
-        }
-
-        function setTab(tabId, btn) {
-            document.querySelectorAll('.tab-view').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        // --- NAVEGAÇÃO ENTRE ABAS ---
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             btn.classList.add('active');
         }
 
-        function sendChatMsg() {
-            const inp = document.getElementById('input-chat-msg');
+        function logAudit(msg) {
+            const box = document.getElementById('audit-log');
+            box.innerHTML += `<div class="log-item">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function sendChatMessage() {
+            const inp = document.getElementById('chat-input');
             if (inp.value.trim()) {
-                addChatLog(myState.name, inp.value.trim());
+                addChatMsg(myState.name, inp.value.trim());
                 if (channel) channel.publish('chat', { sender: myState.name, text: inp.value.trim() });
                 inp.value = '';
             }
         }
 
-        function addChatLog(sender, text) {
-            const box = document.getElementById('chat-box');
-            box.innerHTML += `<div class="log-entry"><strong style="color: var(--term-cyan);">${sender}:</strong> ${text}</div>`;
-            box.scrollTop = box.scrollHeight;
-        }
-
-        function logConsole(type, msg) {
-            const box = document.getElementById('system-audit-log');
-            box.innerHTML += `<div class="log-entry log-${type}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+        function addChatMsg(sender, text) {
+            const box = document.getElementById('chat-feed');
+            box.innerHTML += `<div class="log-item"><strong>${sender}:</strong> ${text}</div>`;
             box.scrollTop = box.scrollHeight;
         }
 
