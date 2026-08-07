@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>MSN 3D 1ª Pessoa - Mobile & PC</title>
+  <title>Maldito Desgraçado 3D 1ª Pessoa - Parkour & X1</title>
   <!-- SDKs do Ably e Three.js via CDN -->
   <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -17,7 +17,39 @@
       background-color: #70b5ff;
       user-select: none;
       -webkit-user-select: none;
-      touch-action: none; /* Impede rolagem e zoom em celulares */
+      touch-action: none;
+    }
+
+    /* BLOQUEIO DE TELA PARA CELULAR EM PÉ */
+    #portrait-warning {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: #0f172a;
+      color: #ffffff;
+      z-index: 9999;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #portrait-warning .icon {
+      font-size: 3.5rem;
+      margin-bottom: 1rem;
+      animation: rotatePhone 2s infinite ease-in-out;
+    }
+
+    @keyframes rotatePhone {
+      0%, 15% { transform: rotate(0deg); }
+      50%, 65% { transform: rotate(-90deg); }
+      100% { transform: rotate(-90deg); }
+    }
+
+    @media screen and (orientation: portrait) and (max-width: 900px) {
+      #portrait-warning { display: flex !important; }
     }
 
     /* Container 3D */
@@ -25,8 +57,7 @@
       width: 100vw;
       height: 100vh;
       position: absolute;
-      top: 0;
-      left: 0;
+      top: 0; left: 0;
       z-index: 1;
       cursor: crosshair;
     }
@@ -34,10 +65,8 @@
     /* Overlay para Elementos 2D */
     #overlay-container {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       z-index: 10;
       pointer-events: none;
     }
@@ -45,32 +74,30 @@
     /* Tela de Login */
     #login-screen {
       position: absolute;
-      top: 50%;
-      left: 50%;
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(16px);
-      padding: 2rem;
+      padding: 1.5rem 2rem;
       border-radius: 20px;
-      width: 90%;
-      max-width: 360px;
+      width: 90%; max-width: 380px;
       text-align: center;
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
       z-index: 100;
       pointer-events: auto;
     }
 
-    #login-screen h1 { margin-bottom: 0.5rem; font-size: 1.6rem; color: #0284c7; }
-    #login-screen p { color: #64748b; font-size: 0.85rem; margin-bottom: 1.2rem; }
+    #login-screen h1 { margin-bottom: 0.3rem; font-size: 1.5rem; color: #0284c7; }
+    #login-screen p { color: #64748b; font-size: 0.8rem; margin-bottom: 1rem; }
 
     input, button {
       width: 100%;
-      padding: 0.8rem 1rem;
-      margin-bottom: 0.8rem;
+      padding: 0.7rem 1rem;
+      margin-bottom: 0.7rem;
       border-radius: 12px;
       border: 1px solid #cbd5e1;
       outline: none;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
     }
 
     button {
@@ -89,26 +116,23 @@
     #crosshair {
       display: none;
       position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 8px;
-      height: 8px;
-      background: rgba(255, 255, 255, 0.8);
-      border: 1px solid rgba(0, 0, 0, 0.4);
+      top: 50%; left: 50%;
+      width: 10px; height: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 2px solid #0284c7;
       border-radius: 50%;
       transform: translate(-50%, -50%);
       z-index: 40;
       pointer-events: none;
+      transition: transform 0.1s, background-color 0.1s;
     }
 
-    /* Joystick Virtual para Celulares */
+    /* Joystick Virtual (Mobile) */
     #joystick-zone {
       display: none;
       position: absolute;
-      bottom: 90px;
-      left: 20px;
-      width: 120px;
-      height: 120px;
+      bottom: 15px; left: 20px;
+      width: 95px; height: 95px;
       background: rgba(255, 255, 255, 0.25);
       border: 2px solid rgba(255, 255, 255, 0.5);
       border-radius: 50%;
@@ -119,10 +143,8 @@
 
     #joystick-knob {
       position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 50px;
-      height: 50px;
+      top: 50%; left: 50%;
+      width: 40px; height: 40px;
       background: rgba(2, 132, 199, 0.85);
       border: 2px solid #ffffff;
       border-radius: 50%;
@@ -130,15 +152,36 @@
       box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
 
-    /* HUD do Rodapé */
+    /* Botão de Pulo (Mobile) */
+    #btn-jump-mobile {
+      display: none;
+      position: absolute;
+      bottom: 20px; right: 25px;
+      width: 65px; height: 65px;
+      background: rgba(34, 197, 94, 0.9);
+      color: white;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      font-weight: bold;
+      font-size: 0.8rem;
+      z-index: 50;
+      pointer-events: auto;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+    }
+
+    #btn-jump-mobile:active { transform: scale(0.92); background: #16a34a; }
+
+    /* HUD Rodapé */
     #bottom-hud {
       display: none;
       position: absolute;
-      bottom: 16px;
-      left: 50%;
+      bottom: 12px; left: 50%;
       transform: translateX(-50%);
-      width: 92%;
-      max-width: 580px;
+      width: 75%; max-width: 460px;
       z-index: 50;
       gap: 8px;
       pointer-events: auto;
@@ -150,48 +193,48 @@
       backdrop-filter: blur(12px);
       border: 2px solid #38bdf8;
       border-radius: 30px;
-      padding: 10px 16px;
-      font-size: 0.95rem;
+      padding: 8px 16px;
+      font-size: 0.85rem;
       color: #0f172a;
       outline: none;
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
       margin-bottom: 0;
     }
 
-    .btn-nudge-hud {
+    .btn-challenge-hud {
       width: auto;
-      background: #ec4899;
-      color: white;
+      background: #f59e0b;
+      color: #000;
       border: none;
       border-radius: 30px;
       padding: 0 16px;
       font-weight: bold;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       cursor: pointer;
-      box-shadow: 0 8px 16px rgba(236, 72, 153, 0.3);
+      box-shadow: 0 8px 16px rgba(245, 158, 11, 0.3);
       margin-bottom: 0;
       white-space: nowrap;
     }
+
+    .btn-challenge-hud:hover { background: #d97706; color: white; }
 
     /* Indicador de Controles */
     #controls-tip {
       display: none;
       position: absolute;
-      top: 15px;
-      left: 15px;
-      right: 15px;
+      top: 10px; left: 50%;
+      transform: translateX(-50%);
       background: rgba(255, 255, 255, 0.88);
       backdrop-filter: blur(8px);
-      padding: 8px 14px;
+      padding: 6px 14px;
       border-radius: 20px;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 600;
       color: #334155;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       z-index: 50;
       text-align: center;
-      max-width: 420px;
-      margin: 0 auto;
+      white-space: nowrap;
     }
 
     /* Tag de Nome Sobre os Outros Bonecos */
@@ -200,9 +243,9 @@
       transform: translate(-50%, -100%);
       background: rgba(15, 23, 42, 0.85);
       color: #ffffff;
-      padding: 4px 10px;
+      padding: 3px 8px;
       border-radius: 20px;
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: bold;
       pointer-events: auto;
       white-space: nowrap;
@@ -218,8 +261,8 @@
       color: #000;
       border: none;
       border-radius: 10px;
-      padding: 3px 8px;
-      font-size: 0.7rem;
+      padding: 2px 6px;
+      font-size: 0.65rem;
       font-weight: bold;
       cursor: pointer;
     }
@@ -230,12 +273,12 @@
       transform: translate(-50%, -100%);
       background: #ffffff;
       color: #0f172a;
-      padding: 8px 14px;
-      border-radius: 16px;
-      font-size: 0.85rem;
+      padding: 6px 12px;
+      border-radius: 14px;
+      font-size: 0.8rem;
       font-weight: 600;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-      max-width: 200px;
+      max-width: 180px;
       word-break: break-word;
       pointer-events: none;
       border: 2px solid #38bdf8;
@@ -245,10 +288,9 @@
     .speech-bubble::after {
       content: '';
       position: absolute;
-      bottom: -10px;
-      left: 50%;
+      bottom: -8px; left: 50%;
       transform: translateX(-50%);
-      border-width: 10px 8px 0;
+      border-width: 8px 6px 0;
       border-style: solid;
       border-color: #38bdf8 transparent transparent transparent;
     }
@@ -256,18 +298,6 @@
     @keyframes popIn {
       0% { transform: translate(-50%, -80%) scale(0.5); opacity: 0; }
       100% { transform: translate(-50%, -100%) scale(1); opacity: 1; }
-    }
-
-    /* Efeito Tremer Tela (Nudge MSN) */
-    .shake {
-      animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-    }
-
-    @keyframes shake {
-      10%, 90% { transform: translate3d(-3px, 0, 0); }
-      20%, 80% { transform: translate3d(5px, 0, 0); }
-      30%, 50%, 70% { transform: translate3d(-10px, 0, 0); }
-      40%, 60% { transform: translate3d(10px, 0, 0); }
     }
 
     /* Modais */
@@ -285,29 +315,29 @@
 
     .modal-card {
       background: #ffffff;
-      padding: 1.5rem;
-      border-radius: 20px;
+      padding: 1.2rem;
+      border-radius: 18px;
       text-align: center;
-      max-width: 340px;
-      width: 88%;
+      max-width: 320px;
+      width: 85%;
       box-shadow: 0 20px 40px rgba(0,0,0,0.2);
     }
 
     .grid-x1 {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin: 1.2rem 0;
+      gap: 6px;
+      margin: 0.8rem 0;
     }
 
     .cell {
-      aspect-ratio: 1;
+      height: 55px;
       background: #f1f5f9;
-      border-radius: 12px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.8rem;
+      font-size: 1.5rem;
       font-weight: bold;
       color: #0284c7;
       cursor: pointer;
@@ -316,30 +346,38 @@
 </head>
 <body>
 
+  <!-- Alerta de Orientação -->
+  <div id="portrait-warning">
+    <div class="icon">📱🔄</div>
+    <h2>Por favor, vire o celular!</h2>
+    <p style="color: #94a3b8; margin-top: 8px; font-size: 0.9rem;">Este jogo foi feito para ser jogado na horizontal.</p>
+  </div>
+
   <!-- Tela de Login -->
   <div id="login-screen">
-    <h1>MSN 3D 1ª Pessoa</h1>
+    <h1>Maldito Desgraçado 3D</h1>
     <p>Insira sua API Key do Ably e escolha um apelido para entrar no mundo.</p>
     <input type="password" id="ably-key" placeholder="API Key do Ably">
     <input type="text" id="username" placeholder="Seu Apelido">
     <button onclick="connectAbly()">Entrar no Mundo</button>
   </div>
 
-  <!-- Ponto de mira (Crosshair) -->
+  <!-- Crosshair -->
   <div id="crosshair"></div>
 
-  <!-- Dica de Controles -->
+  <!-- Controles Tip -->
   <div id="controls-tip">🎮 Carregando controles...</div>
 
-  <!-- Joystick Virtual (Mobile) -->
+  <!-- Joystick & Botão de Pulo (Mobile) -->
   <div id="joystick-zone">
     <div id="joystick-knob"></div>
   </div>
+  <div id="btn-jump-mobile" onclick="triggerJump()">🦘 PULAR</div>
 
-  <!-- HUD do Rodapé -->
+  <!-- HUD Rodapé -->
   <div id="bottom-hud">
-    <input type="text" id="chat-input" placeholder="Mensagem... (Enter para enviar)" onkeydown="if(event.key==='Enter') sendMessage()">
-    <button class="btn-nudge-hud" onclick="sendNudge()">⚡ Atenção</button>
+    <input type="text" id="chat-input" placeholder="Mensagem... (Enter envia)" onkeydown="if(event.key==='Enter') sendMessage()">
+    <button class="btn-challenge-hud" onclick="challengeCrosshairTarget()">⚡ Desafiar X1</button>
   </div>
 
   <!-- Canvas 3D & Overlay -->
@@ -349,11 +387,11 @@
   <!-- Modal Desafio X1 -->
   <div class="modal-overlay" id="challenge-modal">
     <div class="modal-card">
-      <h3 id="challenge-text" style="color: #0f172a;">Jogador te chamou pro X1!</h3>
-      <p style="color: #64748b; margin: 0.6rem 0; font-size: 0.85rem;">Duelo de Jogo da Velha em tempo real.</p>
-      <div style="display: flex; gap: 10px;">
-        <button onclick="acceptChallenge()" style="background: #22c55e;">Aceitar</button>
-        <button onclick="declineChallenge()" style="background: #ef4444;">Recusar</button>
+      <h3 id="challenge-text" style="color: #0f172a; font-size: 1.1rem;">Jogador te chamou pro X1!</h3>
+      <p style="color: #64748b; margin: 0.4rem 0; font-size: 0.8rem;">Duelo de Jogo da Velha em tempo real.</p>
+      <div style="display: flex; gap: 8px;">
+        <button onclick="acceptChallenge()" style="background: #22c55e; padding: 0.5rem;">Aceitar</button>
+        <button onclick="declineChallenge()" style="background: #ef4444; padding: 0.5rem;">Recusar</button>
       </div>
     </div>
   </div>
@@ -361,7 +399,7 @@
   <!-- Modal do Jogo X1 -->
   <div class="modal-overlay" id="game-modal">
     <div class="modal-card">
-      <h2 id="game-status" style="color: #0284c7; font-size: 1.3rem;">Sua Vez</h2>
+      <h2 id="game-status" style="color: #0284c7; font-size: 1.1rem;">Sua Vez</h2>
       <div class="grid-x1" id="board">
         <div class="cell" onclick="makeMove(0)"></div>
         <div class="cell" onclick="makeMove(1)"></div>
@@ -373,7 +411,7 @@
         <div class="cell" onclick="makeMove(7)"></div>
         <div class="cell" onclick="makeMove(8)"></div>
       </div>
-      <button onclick="closeGame()" style="background: #ef4444;">Sair do Duelo</button>
+      <button onclick="closeGame()" style="background: #ef4444; padding: 0.5rem;">Sair do Duelo</button>
     </div>
   </div>
 
@@ -385,18 +423,25 @@
     let isMyTurn = false;
     let boardState = Array(9).fill(null);
 
-    // --- THREE.JS VARS ---
-    let scene, camera, renderer, floorMesh, gridHelper;
+    // --- THREE.JS & PHYSICS VARS ---
+    let scene, camera, renderer, floorMesh, gridHelper, raycaster;
     let players = {};
-    const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false };
+    let platforms = [];
+
+    const keys = { w: false, a: false, s: false, d: false, space: false, ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false };
+
+    // Física
+    let playerVelY = 0;
+    let isGrounded = true;
+    const gravity = -0.015;
+    const jumpForce = 0.32;
 
     // Controles de Câmera e Touch
     let isPointerLocked = false;
     let isTouchDevice = false;
     let pitch = 0, yaw = 0;
-    const avatarColors = [0x22c55e, 0x00a8ff, 0x9c88ff, 0xff7f50, 0xe84393, 0xfbc531];
+    const avatarColors = [0x22c55e, 0x00a8ff, 0x9c88ff, 0xff7043, 0xe84393, 0xfbc531];
 
-    // Variáveis do Joystick e Touch Look (Mobile)
     let joystickVector = { x: 0, y: 0 };
     let joystickTouchId = null;
     let lookTouchId = null;
@@ -411,6 +456,10 @@
         return;
       }
 
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(() => {});
+      }
+
       myClientId = 'usr_' + Math.random().toString(36).substr(2, 7);
       ably = new Ably.Realtime({ key: apiKey, clientId: myClientId });
 
@@ -420,7 +469,6 @@
         document.getElementById('controls-tip').style.display = 'block';
         document.getElementById('crosshair').style.display = 'block';
 
-        // Detecta se é dispositivo Touch
         isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
         init3DWorld();
@@ -431,7 +479,7 @@
       ably.connection.on('failed', () => alert('Falha ao conectar no Ably. Confira sua API Key.'));
     }
 
-    // --- CONFIGURAÇÃO DO MUNDO 3D INFINITO ---
+    // --- CONFIGURAÇÃO DO MUNDO 3D ---
     function init3DWorld() {
       const container = document.getElementById('canvas-container');
 
@@ -442,22 +490,26 @@
       camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
       camera.rotation.order = 'YXZ';
 
+      raycaster = new THREE.Raycaster();
+
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       container.appendChild(renderer.domElement);
 
-      // Iluminação
+      // Luzes
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
       scene.add(ambientLight);
 
       const hemiLight = new THREE.HemisphereLight(0x70b5ff, 0xffffff, 0.4);
       scene.add(hemiLight);
 
-      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      dirLight.position.set(20, 40, 20);
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
+      dirLight.position.set(25, 45, 25);
       dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
       scene.add(dirLight);
 
       // Chão
@@ -473,22 +525,102 @@
       gridHelper.position.y = 0.01;
       scene.add(gridHelper);
 
+      // Parkour
+      buildParkourCourse();
+
       window.addEventListener('resize', onWindowResize);
 
       createPlayerAvatar(myClientId, myUsername, avatarColors[0], true);
       animate3D();
     }
 
-    // --- SISTEMA DE CONTROLES (MÓVEL & PC) ---
+    function addParkourBlock(x, y, z, w, h, d, colorHex) {
+      const geo = new THREE.BoxGeometry(w, h, d);
+      const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.3 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y + h / 2, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+
+      platforms.push({
+        xMin: x - w / 2, xMax: x + w / 2,
+        zMin: z - d / 2, zMax: z + d / 2,
+        topY: y + h
+      });
+    }
+
+    function buildParkourCourse() {
+      addParkourBlock(0, 0, -8, 4, 1.0, 4, 0x00bcd4);
+      addParkourBlock(0, 0, -14, 3, 2.2, 3, 0xab47bc);
+      addParkourBlock(5, 0, -18, 3, 3.5, 3, 0xff7043);
+      addParkourBlock(11, 2.5, -18, 2.5, 1.2, 2.5, 0x26a69a);
+      addParkourBlock(17, 4.0, -14, 2.5, 1.2, 2.5, 0xffca28);
+      addParkourBlock(17, 5.5, -8, 2.5, 1.2, 2.5, 0xec4899);
+      addParkourBlock(12, 7.0, -2, 4, 1.5, 4, 0x3b82f6);
+      addParkourBlock(5, 8.5, 3, 2.2, 1.2, 2.2, 0x10b981);
+      addParkourBlock(-1, 10.0, 3, 2.2, 1.2, 2.2, 0xf59e0b);
+      addParkourBlock(-7, 11.5, -2, 2.2, 1.2, 2.2, 0xef4444);
+      addParkourBlock(-7, 13.0, -9, 5, 1.5, 5, 0xffd700);
+    }
+
+    // --- RAYCASTING: CLICAR NO JOGADOR EM 3D PARA DESAFIAR ---
+    function raycastTargetPlayer(screenX, screenY) {
+      const mouse = new THREE.Vector2(
+        (screenX / window.innerWidth) * 2 - 1,
+        -(screenY / window.innerHeight) * 2 + 1
+      );
+
+      raycaster.setFromCamera(mouse, camera);
+
+      const targetObjects = [];
+      Object.keys(players).forEach(id => {
+        if (id !== myClientId && players[id].mesh) {
+          players[id].mesh.traverse(child => {
+            child.userData.playerId = id;
+            targetObjects.push(child);
+          });
+        }
+      });
+
+      const intersects = raycaster.intersectObjects(targetObjects);
+      if (intersects.length > 0) {
+        const hitId = intersects[0].object.userData.playerId;
+        if (hitId && hitId !== myClientId) {
+          return hitId;
+        }
+      }
+      return null;
+    }
+
+    function challengeCrosshairTarget() {
+      // Raycast a partir do centro da tela (Mira/Crosshair)
+      const targetId = raycastTargetPlayer(window.innerWidth / 2, window.innerHeight / 2);
+      if (targetId) {
+        challengeUser(targetId);
+      } else {
+        alert('Mire diretamente em um jogador ou clique nele no espaço 3D para desafiá-lo!');
+      }
+    }
+
+    // --- CONTROLES & PULO ---
+    function triggerJump() {
+      if (isGrounded) {
+        playerVelY = jumpForce;
+        isGrounded = false;
+      }
+    }
+
     function setupControls() {
       const tip = document.getElementById('controls-tip');
 
       if (isTouchDevice) {
         document.getElementById('joystick-zone').style.display = 'block';
-        tip.innerHTML = '📱 <b>Joystick</b> (esquerda) para andar | <b>Deslize</b> (direita) para olhar';
+        document.getElementById('btn-jump-mobile').style.display = 'flex';
+        tip.innerHTML = '📱 Clique no jogador 3D ou mire nele para chamar pro X1!';
         setupTouchControls();
       } else {
-        tip.innerHTML = '🖱️ <b>Clique na tela</b> para olhar com o mouse | <b>WASD</b> para andar';
+        tip.innerHTML = '🖱️ Clique em um jogador 3D para desafiá-lo | <b>WASD</b> | <b>Espaço</b>';
         setupMouseControls();
         setupKeyboardControls();
       }
@@ -497,8 +629,17 @@
     function setupMouseControls() {
       const container = document.getElementById('canvas-container');
 
-      container.addEventListener('click', () => {
-        if (document.activeElement !== document.getElementById('chat-input')) {
+      container.addEventListener('click', (e) => {
+        if (document.activeElement === document.getElementById('chat-input')) return;
+
+        // Tenta desafiar se clicou em um boneco 3D
+        const hitId = raycastTargetPlayer(e.clientX, e.clientY);
+        if (hitId) {
+          challengeUser(hitId);
+          return;
+        }
+
+        if (!isPointerLocked) {
           document.body.requestPointerLock();
         }
       });
@@ -523,7 +664,14 @@
           document.getElementById('chat-input').focus();
           return;
         }
+
         if (document.activeElement === document.getElementById('chat-input')) return;
+
+        if (e.code === 'Space') {
+          triggerJump();
+          e.preventDefault();
+        }
+
         const key = e.key.toLowerCase();
         if (keys.hasOwnProperty(key)) keys[key] = true;
         if (e.key.startsWith('Arrow')) keys[e.key] = true;
@@ -536,7 +684,6 @@
       });
     }
 
-    // --- CONTROLES TOUCH (JOYSTICK & TOUCH LOOK) ---
     function setupTouchControls() {
       const joystickZone = document.getElementById('joystick-zone');
       const joystickKnob = document.getElementById('joystick-knob');
@@ -545,16 +692,20 @@
         for (let i = 0; i < e.changedTouches.length; i++) {
           const touch = e.changedTouches[i];
 
-          // Se tocar na área esquerda -> Joystick
+          if (touch.target.id === 'btn-jump-mobile' || touch.target.closest('#btn-jump-mobile')) continue;
+
+          // Se tocar na tela em cima de um boneco 3D -> Desafia
+          const hitId = raycastTargetPlayer(touch.clientX, touch.clientY);
+          if (hitId) {
+            challengeUser(hitId);
+            return;
+          }
+
           if (touch.clientX < window.innerWidth / 2 && joystickTouchId === null) {
-            // Evita ativar se tocar no chat input
-            if (touch.clientY > window.innerHeight - 80 && touch.clientX > window.innerWidth / 4) continue;
-            
+            if (touch.clientY > window.innerHeight - 60 && touch.clientX > window.innerWidth / 3) continue;
             joystickTouchId = touch.identifier;
             updateJoystick(touch, joystickZone, joystickKnob);
-          } 
-          // Se tocar na metade direita -> Touch Look
-          else if (touch.clientX >= window.innerWidth / 2 && lookTouchId === null) {
+          } else if (touch.clientX >= window.innerWidth / 2 && lookTouchId === null) {
             lookTouchId = touch.identifier;
             lastLookPos = { x: touch.clientX, y: touch.clientY };
           }
@@ -570,8 +721,8 @@
           } else if (touch.identifier === lookTouchId) {
             const dx = touch.clientX - lastLookPos.x;
             const dy = touch.clientY - lastLookPos.y;
-            
-            const touchSensitivity = 0.004;
+
+            const touchSensitivity = 0.0035;
             yaw -= dx * touchSensitivity;
             pitch -= dy * touchSensitivity;
             pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
@@ -614,14 +765,12 @@
       }
 
       knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-
-      // Normaliza para valores entre -1 e 1
       joystickVector.x = dx / maxRadius;
       joystickVector.y = dy / maxRadius;
     }
 
-    // --- MODELAGEM 3D DO MASCOTE MSN ---
-    function createMSNBuddyMesh(colorHex) {
+    // --- MODELAGEM 3D DO MASCOTE ---
+    function createMalditoDesgracadoBuddyMesh(colorHex) {
       const group = new THREE.Group();
 
       const material = new THREE.MeshPhongMaterial({
@@ -630,14 +779,12 @@
         specular: 0x444444
       });
 
-      // Cabeça
       const headGeo = new THREE.SphereGeometry(0.48, 32, 32);
       const head = new THREE.Mesh(headGeo, material);
       head.position.y = 1.32;
       head.castShadow = true;
       group.add(head);
 
-      // Corpo
       const points = [];
       for (let i = 0; i <= 30; i++) {
         const t = i / 30;
@@ -649,7 +796,6 @@
       body.castShadow = true;
       group.add(body);
 
-      // Braços
       const armGeo = new THREE.SphereGeometry(0.2, 16, 16);
       armGeo.scale(1, 2.2, 1);
 
@@ -671,11 +817,11 @@
     function createPlayerAvatar(id, name, colorHex, isMe = false) {
       if (players[id]) return;
 
-      const mesh = createMSNBuddyMesh(colorHex);
-      const spawnX = (Math.random() - 0.5) * 10;
-      const spawnZ = (Math.random() - 0.5) * 10;
+      const mesh = createMalditoDesgracadoBuddyMesh(colorHex);
+      const spawnX = (Math.random() - 0.5) * 8;
+      const spawnZ = (Math.random() - 0.5) * 8;
       mesh.position.set(spawnX, 0, spawnZ);
-      
+
       if (isMe) mesh.visible = false;
       scene.add(mesh);
 
@@ -700,7 +846,7 @@
       };
     }
 
-    // --- LOOP DE RENDERIZAÇÃO E MOVIMENTAÇÃO HÍBRIDA ---
+    // --- LOOP DE RENDERIZAÇÃO & FÍSICA ---
     let lastBroadCast = 0;
     const tempV = new THREE.Vector3();
 
@@ -712,7 +858,6 @@
       if (myPlayer) {
         myPlayer.mesh.rotation.y = yaw;
 
-        // Combina Teclado WASD + Joystick Virtual do Celular
         let moveX = 0, moveZ = 0;
 
         if (isTouchDevice) {
@@ -737,27 +882,49 @@
           if (moveDir.length() > 1) moveDir.normalize();
 
           myPlayer.mesh.position.addScaledVector(moveDir, speed);
+        }
 
-          // Transmite posição
-          const now = Date.now();
-          if (now - lastBroadCast > 40) {
-            lobbyChannel.publish('move3d', {
-              id: myClientId,
-              x: myPlayer.mesh.position.x,
-              z: myPlayer.mesh.position.z,
-              rot: yaw
-            });
-            lastBroadCast = now;
+        // Colisão com o Parkour
+        const px = myPlayer.mesh.position.x;
+        const pz = myPlayer.mesh.position.z;
+        let groundY = 0;
+
+        for (let p of platforms) {
+          if (px + 0.3 > p.xMin && px - 0.3 < p.xMax && pz + 0.3 > p.zMin && pz - 0.3 < p.zMax) {
+            if (myPlayer.mesh.position.y >= p.topY - 0.3) {
+              if (p.topY > groundY) groundY = p.topY;
+            }
           }
         }
 
-        // Posição da Câmera em 1ª Pessoa
+        playerVelY += gravity;
+        myPlayer.mesh.position.y += playerVelY;
+
+        if (myPlayer.mesh.position.y <= groundY) {
+          myPlayer.mesh.position.y = groundY;
+          playerVelY = 0;
+          isGrounded = true;
+        } else {
+          isGrounded = false;
+        }
+
+        const now = Date.now();
+        if (now - lastBroadCast > 40) {
+          lobbyChannel.publish('move3d', {
+            id: myClientId,
+            x: myPlayer.mesh.position.x,
+            y: myPlayer.mesh.position.y,
+            z: myPlayer.mesh.position.z,
+            rot: yaw
+          });
+          lastBroadCast = now;
+        }
+
         camera.position.copy(myPlayer.mesh.position);
         camera.position.y += 1.35;
         camera.rotation.y = yaw;
         camera.rotation.x = pitch;
 
-        // Grid Infinito
         const snap = 2;
         gridHelper.position.x = Math.floor(myPlayer.mesh.position.x / snap) * snap;
         gridHelper.position.z = Math.floor(myPlayer.mesh.position.z / snap) * snap;
@@ -765,12 +932,12 @@
         floorMesh.position.z = myPlayer.mesh.position.z;
       }
 
-      // Projeção 2D dos Elementos
+      // Projeção 2D
       Object.keys(players).forEach(id => {
         const p = players[id];
 
         if (id !== myClientId) {
-          p.mesh.position.lerp(p.targetPos, 0.15);
+          p.mesh.position.lerp(p.targetPos, 0.18);
 
           tempV.setFromMatrixPosition(p.mesh.matrixWorld);
           tempV.y += 2.1;
@@ -788,7 +955,7 @@
 
           if (p.speechBubble) {
             p.speechBubble.style.left = `${x}px`;
-            p.speechBubble.style.top = `${y - 35}px`;
+            p.speechBubble.style.top = `${y - 30}px`;
             p.speechBubble.style.display = isVisible ? 'block' : 'none';
           }
         }
@@ -828,7 +995,7 @@
       }, 6000);
     }
 
-    // --- REDE MULTIPLAYER (ABLY) ---
+    // --- REDE MULTIPLAYER ABLY ---
     function initAblyLobby() {
       lobbyChannel = ably.channels.get('hangout-lobby');
 
@@ -841,14 +1008,9 @@
 
       lobbyChannel.subscribe('move3d', (msg) => {
         if (msg.clientId !== myClientId && players[msg.data.id]) {
-          players[msg.data.id].targetPos.set(msg.data.x, 0, msg.data.z);
+          players[msg.data.id].targetPos.set(msg.data.x, msg.data.y || 0, msg.data.z);
           players[msg.data.id].mesh.rotation.y = msg.data.rot;
         }
-      });
-
-      lobbyChannel.subscribe('nudge', (msg) => {
-        triggerNudgeEffect();
-        showSpeechBubble(msg.data.id, '⚡ CHAMOU A ATENÇÃO DE TODOS!');
       });
 
       lobbyChannel.subscribe('challenge', (msg) => {
@@ -895,16 +1057,7 @@
       if (!isTouchDevice) document.body.requestPointerLock();
     }
 
-    function sendNudge() {
-      lobbyChannel.publish('nudge', { id: myClientId });
-    }
-
-    function triggerNudgeEffect() {
-      document.body.classList.add('shake');
-      setTimeout(() => document.body.classList.remove('shake'), 500);
-    }
-
-    /* --- SISTEMA DO JOGO X1 --- */
+    /* --- JOGO X1 --- */
     function challengeUser(targetId) {
       if (document.pointerLockElement) document.exitPointerLock();
       lobbyChannel.publish('challenge', { targetId: targetId, fromUser: myUsername });
