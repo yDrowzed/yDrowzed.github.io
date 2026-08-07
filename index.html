@@ -22,38 +22,45 @@
             position: absolute; top: 10px; left: 10px; z-index: 1000;
             background: rgba(255, 255, 255, 0.95); padding: 12px 15px;
             border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            display: flex; flex-direction: column; gap: 6px; width: 220px;
+            display: flex; flex-direction: column; gap: 6px; width: 230px;
         }
         .hud-title { font-weight: bold; color: #1e293b; font-size: 14px; }
         .hud-money { color: #16a34a; font-weight: bold; font-size: 18px; }
         .hud-stats { font-size: 11px; color: #64748b; }
 
-        /* Botão de Scan Manual */
-        .scan-btn {
-            background: #6366f1; color: white; border: none; padding: 6px 10px;
+        /* Botões */
+        .btn {
+            background: #6366f1; color: white; border: none; padding: 8px 10px;
             border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;
             display: flex; align-items: center; justify-content: center; gap: 5px;
+            text-align: center;
         }
-        .scan-btn:hover { background: #4f46e5; }
-        .scan-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+        .btn:hover { background: #4f46e5; }
+        .btn:disabled { background: #94a3b8; cursor: not-allowed; }
+        .btn-gps { background: #ef4444; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
 
         /* Chat */
         .chat-container {
             position: absolute; bottom: 20px; right: 20px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.95); width: 280px; height: 220px;
+            background: rgba(255, 255, 255, 0.95); width: 280px; height: 200px;
             border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             display: flex; flex-direction: column;
         }
         .chat-messages {
-            flex: 1; padding: 10px; overflow-y: auto; font-size: 12px;
+            flex: 1; padding: 10px; overflow-y: auto; font-size: 11px;
             display: flex; flex-direction: column; gap: 4px;
         }
-        .chat-messages span { padding: 4px 8px; border-radius: 6px; background: #f1f5f9; width: fit-content; }
+        .chat-messages span { padding: 4px 8px; border-radius: 6px; background: #f1f5f9; width: fit-content; word-break: break-word; }
         .chat-input { display: flex; border-top: 1px solid #e2e8f0; }
         .chat-input input { flex: 1; padding: 8px; border: none; outline: none; border-bottom-left-radius: 12px; font-size: 12px; }
         .chat-input button { padding: 8px 12px; background: #6366f1; color: white; border: none; cursor: pointer; border-bottom-right-radius: 12px; font-weight: bold; }
 
-        /* Popups de Compra */
         .buy-btn {
             background: #10b981; color: white; border: none; padding: 6px 12px;
             border-radius: 6px; cursor: pointer; margin-top: 8px; width: 100%; font-weight: bold;
@@ -64,16 +71,18 @@
 <body>
 
     <div class="hud-top">
-        <div class="hud-title">🌍 <span id="player-name">Carregando...</span></div>
+        <div class="hud-title">🌍 <span id="player-name">Investidor</span></div>
         <div class="hud-money">R$ <span id="money-display">15.000</span></div>
-        <div class="hud-stats">Empresas: <span id="companies-display">0</span> | <span id="online-display">0 Online</span></div>
-        <button id="scan-button" class="scan-btn" onclick="triggerManualScan()">🔍 Escanear Região</button>
+        <div class="hud-stats">Empresas: <span id="companies-display">0</span> | <span id="online-display">1 Online</span></div>
+        
+        <button id="gps-btn" class="btn btn-gps" onclick="initGPS()">📍 PERMITIR GPS</button>
+        <button id="scan-button" class="btn" style="display:none;" onclick="triggerManualScan()">🔍 Escanear Região</button>
     </div>
 
     <div class="chat-container">
         <div class="chat-messages" id="chat-box"></div>
         <div class="chat-input">
-            <input type="text" id="chat-msg" placeholder="Chat do jogo..." onkeypress="handleEnter(event)" />
+            <input type="text" id="chat-msg" placeholder="Chat..." onkeypress="handleEnter(event)" />
             <button onclick="sendChat()">Enviar</button>
         </div>
     </div>
@@ -81,13 +90,13 @@
     <div id="map"></div>
 
     <script>
-        // --- 1. CONFIGURAÇÕES E ESTADO DO JOGO ---
-        const ABLY_KEY = '6mtFVg.r4FswQ:gALyOJRv59kDDrMtl9aEF3C85Rg3X2ye6rBDBN1WDLs'; // Insira sua chave da API do Ably
-        const playerName = prompt("Nome do seu investidor:") || "Investidor_" + Math.floor(Math.random() * 100);
-        const myDeviceId = playerName + '-' + Math.random().toString(36).substring(2, 6);
-        
+        // --- ESTADO DO JOGO ---
+        const ABLY_KEY = '6mtFVg.r4FswQ:gALyOJRv59kDDrMtl9aEF3C85Rg3X2ye6rBDBN1WDLs'; // Insira sua chave Ably aqui se desejar multiplayer online
+        let playerName = localStorage.getItem('player_name') || prompt("Nome do seu investidor:") || "Player_" + Math.floor(Math.random() * 1000);
+        localStorage.setItem('player_name', playerName);
         document.getElementById('player-name').innerText = playerName;
 
+        const myDeviceId = playerName + '-' + Math.random().toString(36).substring(2, 6);
         let myMoney = 15000;
         let myCompaniesCount = 0;
         let myCoords = null;
@@ -97,7 +106,8 @@
         const companyMarkers = {};
         const playerMarkers = {};
 
-        const map = L.map('map').setView([0, 0], 2);
+        // --- MAPA ---
+        const map = L.map('map').setView([-23.5505, -46.6333], 15);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
         let myMarker = null;
 
@@ -106,55 +116,74 @@
             iconSize: [28, 28]
         });
 
-        // --- 2. COMUNICAÇÃO EM TEMPO REAL (ABLY) ---
-        const ably = new Ably.Realtime({ key: ABLY_KEY, clientId: myDeviceId });
-        const channel = ably.channels.get('monopoly-gps-v4');
+        function addLog(name, msg) {
+            const box = document.getElementById('chat-box');
+            if (box) {
+                box.innerHTML += `<span><b>${name}:</b> ${msg}</span>`;
+                box.scrollTop = box.scrollHeight;
+            }
+        }
 
-        ably.connection.on('connected', () => {
-            channel.presence.enter({ name: playerName });
-            addLog("Sistema", "Conectado ao servidor do jogo!");
-        });
-
-        channel.presence.subscribe(() => {
-            channel.presence.get((err, members) => {
-                if (!err) document.getElementById('online-display').innerText = `${members.length} Online`;
-            });
-        });
-
-        channel.subscribe('game-event', (msg) => {
-            const data = msg.data;
-
-            if (data.type === 'move' && data.id !== myDeviceId) {
-                if (!playerMarkers[data.id]) {
-                    playerMarkers[data.id] = L.circleMarker([data.coords.lat, data.coords.lng], { color: 'red', radius: 8 })
-                        .addTo(map).bindPopup(`<b>${data.name}</b>`);
-                } else {
-                    playerMarkers[data.id].setLatLng([data.coords.lat, data.coords.lng]);
-                }
+        // --- INICIALIZAÇÃO SEGURA DO GPS ---
+        function initGPS() {
+            if (!("geolocation" in navigator)) {
+                alert("Seu navegador não possui suporte a GPS.");
+                return;
             }
 
-            if (data.type === 'new-company') {
-                registerCompany(data.company);
+            addLog("Sistema", "Aguardando GPS...");
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    handleGPSPosition(pos);
+                    navigator.geolocation.watchPosition(handleGPSPosition, handleGPSError, {
+                        enableHighAccuracy: true,
+                        maximumAge: 0
+                    });
+                },
+                handleGPSError,
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+
+        function handleGPSPosition(pos) {
+            myCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+
+            document.getElementById('gps-btn').style.display = 'none';
+            document.getElementById('scan-button').style.display = 'flex';
+
+            if (firstLocation) {
+                map.setView([myCoords.lat, myCoords.lng], 16);
+                fetchRealPlacesFromAPI(myCoords);
+                firstLocation = false;
+                addLog("Sistema", "GPS Localizado!");
             }
 
-            if (data.type === 'purchase') {
-                if (companies[data.companyId]) {
-                    companies[data.companyId].owner = data.buyerName;
-                    updateCompanyPopup(data.companyId);
-                    addLog("Mercado", `💰 ${data.buyerName} comprou ${companies[data.companyId].name}!`);
-                }
+            if (!myMarker) {
+                myMarker = L.circleMarker([myCoords.lat, myCoords.lng], { 
+                    color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.9, radius: 9 
+                }).addTo(map).bindPopup("Você está aqui");
+            } else {
+                myMarker.setLatLng([myCoords.lat, myCoords.lng]);
             }
 
-            if (data.type === 'chat') {
-                addLog(data.name, data.message);
+            if (typeof channel !== 'undefined' && channel) {
+                channel.publish('game-event', { type: 'move', id: myDeviceId, name: playerName, coords: myCoords });
             }
-        });
+        }
 
-        // --- 3. INTEGRAÇÃO COM A API DE MAPAS (OVERPASS KUMI HTTPS) ---
+        function handleGPSError(err) {
+            console.error("Erro GPS:", err);
+            let msg = "Erro ao ler GPS. Permita a localização no ícone de cadeado do navegador.";
+            alert(msg);
+            addLog("Erro", msg);
+        }
+
+        // --- SCAN DE IMÓVEIS E PRÉDIOS REAIS ---
         let isScanning = false;
 
         function triggerManualScan() {
-            if (!myCoords) return alert("Aguardando localização do GPS...");
+            if (!myCoords) return alert("Ative o GPS primeiro!");
             fetchRealPlacesFromAPI(myCoords);
         }
 
@@ -165,58 +194,74 @@
             const btn = document.getElementById('scan-button');
             if (btn) {
                 btn.disabled = true;
-                btn.innerText = "⏳ Escaneando...";
+                btn.innerText = "⏳ Mapeando...";
             }
 
-            addLog("Radar", "Buscando comércios reais da sua rua...");
+            addLog("Radar", "Buscando prédios e comércios na área...");
             let placesFound = [];
 
-            const radius = 600; // Raio de busca de 600 metros
-            const query = `[out:json][timeout:10];(node["name"]["amenity"](around:${radius},${coords.lat},${coords.lng});node["name"]["shop"](around:${radius},${coords.lat},${coords.lng}););out body 15;`;
-            const kumiUrl = 'https://overpass.kumi.systems/api/interpreter?data=' + encodeURIComponent(query);
+            // Consulta abrangente: busca Nós (nodes) e Polígonos de Prédios/Lojas (ways) em um raio de 800m
+            const radius = 800;
+            const query = `[out:json][timeout:12];(node["name"](around:${radius},${coords.lat},${coords.lng});way["name"](around:${radius},${coords.lat},${coords.lng}););out center 30;`;
 
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 6000);
+            // Servidores de Mapa
+            const endpoints = [
+                'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query),
+                'https://overpass.kumi.systems/api/interpreter?data=' + encodeURIComponent(query)
+            ];
 
-                const res = await fetch(kumiUrl, { signal: controller.signal });
-                clearTimeout(timeoutId);
+            for (const url of endpoints) {
+                if (placesFound.length > 0) break;
 
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && data.elements && data.elements.length > 0) {
-                        data.elements.forEach(place => {
-                            const tags = place.tags || {};
-                            if (place.lat && place.lon && tags.name) {
-                                const cat = tags.amenity || tags.shop || 'Comércio';
-                                placesFound.push({
-                                    id: 'real_' + place.id,
-                                    name: tags.name,
-                                    category: cat,
-                                    price: calculatePrice(cat),
-                                    lat: place.lat,
-                                    lng: place.lon,
-                                    owner: null
-                                });
-                            }
-                        });
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 7000);
+
+                    const res = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.elements && data.elements.length > 0) {
+                            data.elements.forEach(place => {
+                                const tags = place.tags || {};
+                                // Obtém a coordenada do centro caso seja um prédio/polígono (way) ou nó (node)
+                                const itemLat = place.lat || (place.center ? place.center.lat : null);
+                                const itemLng = place.lon || (place.center ? place.center.lon : null);
+
+                                if (itemLat && itemLng && tags.name) {
+                                    const cat = tags.amenity || tags.shop || tags.building || tags.office || 'Prédio Comercial';
+                                    placesFound.push({
+                                        id: 'real_' + place.id,
+                                        name: tags.name,
+                                        category: cat,
+                                        price: calculatePrice(cat),
+                                        lat: itemLat,
+                                        lng: itemLng,
+                                        owner: null
+                                    });
+                                }
+                            });
+                        }
                     }
+                } catch (e) {
+                    console.warn("Tentando servidor secundário...");
                 }
-            } catch (e) {
-                console.warn("Servidor de mapas ocupado:", e);
             }
 
-            // Fallback caso a região não possua locais cadastrados com nome
+            // Caso a área seja estritamente residencial ou sem cadastros de nomes no OSM
             if (placesFound.length === 0) {
-                addLog("Radar", "Poucos locais mapeados na área. Gerando estabelecimentos...");
+                addLog("Radar", "Sinal fraco de nomes. Mapeando estrutura local...");
                 placesFound = generateEmergencyLocalPlaces(coords);
             } else {
-                addLog("Radar", `${placesFound.length} locais REAIS mapeados!`);
+                addLog("Radar", `${placesFound.length} imóveis reais encontrados!`);
             }
 
-            // Publica os locais no canal global
             placesFound.forEach(comp => {
-                channel.publish('game-event', { type: 'new-company', company: comp });
+                registerCompany(comp);
+                if (typeof channel !== 'undefined' && channel) {
+                    channel.publish('game-event', { type: 'new-company', company: comp });
+                }
             });
 
             setTimeout(() => {
@@ -225,25 +270,24 @@
                     btn.disabled = false;
                     btn.innerText = "🔍 Escanear Região";
                 }
-            }, 5000);
+            }, 4000);
         }
 
         function generateEmergencyLocalPlaces(coords) {
             const comers = [
-                { name: "Farmácia Central", cat: "pharmacy", price: 8000 },
-                { name: "Supermercado Express", cat: "supermarket", price: 12000 },
-                { name: "Padaria & Confeitaria", cat: "bakery", price: 5000 },
-                { name: "Posto de Combustível", cat: "fuel", price: 9000 },
-                { name: "Restaurante & Hamburgueria", cat: "restaurant", price: 6000 },
-                { name: "Conveniência 24h", cat: "convenience", price: 4000 }
+                { name: "Edifício Comercial Central", cat: "office", price: 10000 },
+                { name: "Supermercado da Praça", cat: "supermarket", price: 12000 },
+                { name: "Farmácia & Drogaria", cat: "pharmacy", price: 8000 },
+                { name: "Posto de Serviços", cat: "fuel", price: 9000 },
+                { name: "Centro de Conveniência", cat: "mall", price: 15000 },
+                { name: "Restaurante Executivo", cat: "restaurant", price: 6000 }
             ];
 
             return comers.map((item, idx) => {
                 const angle = (idx / comers.length) * 2 * Math.PI;
-                const radius = 0.0015 + (Math.random() * 0.001);
-                
+                const radius = 0.0018;
                 return {
-                    id: 'local_' + Math.floor(coords.lat * 1000) + '_' + idx,
+                    id: 'local_' + Math.floor(coords.lat * 100) + '_' + idx,
                     name: item.name,
                     category: item.cat,
                     price: item.price,
@@ -255,14 +299,13 @@
         }
 
         function calculatePrice(category) {
-            const cat = category.toLowerCase();
-            if (cat.includes('bank') || cat.includes('mall') || cat.includes('supermarket')) return 12000;
-            if (cat.includes('pharmacy') || cat.includes('fuel')) return 8000;
-            if (cat.includes('restaurant') || cat.includes('fast_food')) return 5000;
+            const cat = String(category).toLowerCase();
+            if (cat.includes('bank') || cat.includes('mall') || cat.includes('supermarket') || cat.includes('commercial')) return 12000;
+            if (cat.includes('pharmacy') || cat.includes('fuel') || cat.includes('office')) return 8000;
+            if (cat.includes('restaurant') || cat.includes('fast_food') || cat.includes('bakery')) return 5000;
             return 3000;
         }
 
-        // --- 4. REGISTRO E COMPRA DE EMPRESAS ---
         function registerCompany(comp) {
             if (companies[comp.id]) return;
 
@@ -299,86 +342,71 @@
                 document.getElementById('money-display').innerText = myMoney.toLocaleString('pt-BR');
                 document.getElementById('companies-display').innerText = myCompaniesCount;
 
-                channel.publish('game-event', {
-                    type: 'purchase',
-                    companyId: compId,
-                    buyerName: playerName
-                });
+                comp.owner = playerName;
+                updateCompanyPopup(compId);
 
+                if (typeof channel !== 'undefined' && channel) {
+                    channel.publish('game-event', { type: 'purchase', companyId: compId, buyerName: playerName });
+                }
                 map.closePopup();
             } else {
-                alert("Saldo insuficiente para comprar este imóvel!");
+                alert("Saldo insuficiente!");
             }
         };
 
-        // --- 5. GEOLOCALIZAÇÃO COM TRATAMENTO DE PERMISSÃO ---
-        function requestLocationPermission() {
-            if (!("geolocation" in navigator)) {
-                alert("Seu navegador não suporta geolocalização.");
-                return;
+        // --- CONEXÃO ABLY (MULTIPLAYER) ---
+        let ably, channel;
+        try {
+            if (ABLY_KEY && ABLY_KEY !== 'SUA_API_KEY_DO_ABLY') {
+                ably = new Ably.Realtime({ key: ABLY_KEY, clientId: myDeviceId });
+                channel = ably.channels.get('monopoly-gps-v4');
+
+                ably.connection.on('connected', () => {
+                    channel.presence.enter({ name: playerName });
+                    addLog("Multiplayer", "Conectado à sala!");
+                });
+
+                channel.presence.subscribe(() => {
+                    channel.presence.get((err, members) => {
+                        if (!err) document.getElementById('online-display').innerText = `${members.length} Online`;
+                    });
+                });
+
+                channel.subscribe('game-event', (msg) => {
+                    const data = msg.data;
+                    if (data.type === 'move' && data.id !== myDeviceId) {
+                        if (!playerMarkers[data.id]) {
+                            playerMarkers[data.id] = L.circleMarker([data.coords.lat, data.coords.lng], { color: 'red', radius: 8 }).addTo(map).bindPopup(`<b>${data.name}</b>`);
+                        } else {
+                            playerMarkers[data.id].setLatLng([data.coords.lat, data.coords.lng]);
+                        }
+                    }
+                    if (data.type === 'new-company') registerCompany(data.company);
+                    if (data.type === 'purchase' && companies[data.companyId]) {
+                        companies[data.companyId].owner = data.buyerName;
+                        updateCompanyPopup(data.companyId);
+                    }
+                    if (data.type === 'chat') addLog(data.name, data.message);
+                });
             }
-
-            addLog("Sistema", "Solicitando acesso ao GPS...");
-
-            navigator.geolocation.watchPosition(
-                (pos) => {
-                    myCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-
-                    if (firstLocation) {
-                        map.setView([myCoords.lat, myCoords.lng], 16);
-                        fetchRealPlacesFromAPI(myCoords);
-                        firstLocation = false;
-                        addLog("Sistema", "GPS conectado com sucesso!");
-                    }
-
-                    if (!myMarker) {
-                        myMarker = L.circleMarker([myCoords.lat, myCoords.lng], { 
-                            color: '#2563eb', 
-                            fillColor: '#3b82f6', 
-                            fillOpacity: 0.8, 
-                            radius: 9 
-                        }).addTo(map).bindPopup("Você");
-                    } else {
-                        myMarker.setLatLng([myCoords.lat, myCoords.lng]);
-                    }
-
-                    channel.publish('game-event', { type: 'move', id: myDeviceId, name: playerName, coords: myCoords });
-                },
-                (err) => {
-                    console.error("Erro no GPS:", err);
-                    let msg = "Erro ao obter localização.";
-                    if (err.code === 1) {
-                        msg = "Permissão de GPS negada! Clique no ícone de cadeado na barra de endereço do navegador e permita a Localização.";
-                    } else if (err.code === 2) {
-                        msg = "Sinal de GPS indisponível no momento.";
-                    } else if (err.code === 3) {
-                        msg = "Tempo limite do GPS esgotado.";
-                    }
-                    alert(msg);
-                    addLog("Erro", msg);
-                },
-                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-            );
+        } catch(e) {
+            console.warn("Modo Solo Ativo.");
         }
 
-        // Tenta iniciar o GPS automaticamente
-        requestLocationPermission();
-
-        // --- 6. CHAT E UTILITÁRIOS ---
         function sendChat() {
             const input = document.getElementById('chat-msg');
             const text = input.value.trim();
             if (text) {
-                channel.publish('game-event', { type: 'chat', name: playerName, message: text });
+                if (channel) channel.publish('game-event', { type: 'chat', name: playerName, message: text });
+                else addLog(playerName, text);
                 input.value = '';
             }
         }
         function handleEnter(e) { if (e.key === 'Enter') sendChat(); }
-        function addLog(name, msg) {
-            const box = document.getElementById('chat-box');
-            box.innerHTML += `<span><b>${name}:</b> ${msg}</span>`;
-            box.scrollTop = box.scrollHeight;
-        }
+
+        window.onload = function() {
+            initGPS();
+        };
     </script>
 </body>
 </html>
